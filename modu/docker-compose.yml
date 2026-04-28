@@ -11,7 +11,13 @@ services:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-
+  redis:
+    image: redis:7
+    container_name: modu-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
   app:
     build: .
     container_name: modu-app
@@ -26,3 +32,4 @@ services:
 
 volumes:
   mysql-data:
+  redis-data:
