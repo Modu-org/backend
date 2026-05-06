@@ -8,6 +8,8 @@ com.modu.backend
 │   │   ├── repository
 │   │   ├── entity
 │   │   └── dto
+│   │       ├── request
+│   │       └── response
 │   │
 │   ├── attraction
 │   │   ├── controller
@@ -15,45 +17,49 @@ com.modu.backend
 │   │   ├── repository
 │   │   ├── entity
 │   │   └── dto
+│   │       ├── request
+│   │       └── response
 │   │
 │   ├── accessibility
 │   │   ├── service
 │   │   ├── repository
 │   │   ├── entity
+│   │   ├── enums
+│   │   ├── parser
 │   │   └── dto
+│   │       ├── request
+│   │       └── response
 │   │
-│   ├── schedule
-│   │   ├── controller
-│   │   ├── service
-│   │   ├── repository
-│   │   ├── entity
-│   │   └── dto
-│   │
-|   ├── node
-│   │   ├── controller
-│   │   ├── service
-│   │   ├── repository
-│   │   ├── entity
-│   │   └── dto
-|   |
-│   └── edge
+│   └── schedule
+│       ├── controller
 │       ├── service
 │       ├── repository
 │       ├── entity
 │       └── dto
+│           ├── request
+│           └── response
 │
 ├── external
 │   ├── tourapi
 │   │   ├── client
 │   │   ├── dto
+│   │   │   ├── request
+│   │   │   └── response
+│   │   ├── mapper
 │   │   └── properties
 │   │
 │   └── kakao
 │       ├── client
 │       ├── dto
+│       │   ├── request
+│       │   └── response
+│       ├── mapper
 │       └── properties
-│     
-│       
+│
+├── batch
+│   └── tourapi
+│       ├── service
+│       └── scheduler
 │
 └── global
     ├── config
