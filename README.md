@@ -29,7 +29,7 @@ com.modu.backend
 │   │   ├── entity
 │   │   └── dto
 │   │
-│   └── route
+│   └── edge
 │       ├── service
 │       ├── repository
 │       ├── entity
@@ -41,15 +41,15 @@ com.modu.backend
 │   │   ├── dto
 │   │   └── properties
 │   │
-│   ├── barrierfreeapi
-│   │   ├── client
-│   │   ├── dto
-│   │   └── properties
-│   │
 │   └── kakao
 │       ├── client
 │       ├── dto
 │       └── properties
+│   
+│   
+│       
+│      
+│       
 │
 └── global
     ├── config
