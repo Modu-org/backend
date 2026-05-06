@@ -29,6 +29,13 @@ com.modu.backend
 │   │   ├── entity
 │   │   └── dto
 │   │
+|   ├── node
+│   │   ├── controller
+│   │   ├── service
+│   │   ├── repository
+│   │   ├── entity
+│   │   └── dto
+|   |
 │   └── edge
 │       ├── service
 │       ├── repository
@@ -45,10 +52,7 @@ com.modu.backend
 │       ├── client
 │       ├── dto
 │       └── properties
-│   
-│   
-│       
-│      
+│     
 │       
 │
 └── global
