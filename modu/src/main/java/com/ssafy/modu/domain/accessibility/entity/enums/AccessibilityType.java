@@ -1,0 +1,31 @@
+package com.ssafy.modu.domain.accessibility.entity.enums;
+
+public enum AccessibilityType {
+    PARKING,
+    ACCESSIBLE_PARKING,
+    PUBLIC_TRANSPORT,
+    ROUTE,
+    TICKET_OFFICE,
+    WHEELCHAIR,
+    EXIT,
+    ELEVATOR,
+    RESTROOM,
+    ACCESSIBLE_RESTROOM,
+    AUDITORIUM,
+    ROOM,
+    BRAILLE_BLOCK,
+    HELP_DOG,
+    GUIDE_HUMAN,
+    AUDIO_GUIDE,
+    BIG_PRINT,
+    BRAILLE_PROMOTION,
+    GUIDE_SYSTEM,
+    SIGN_GUIDE,
+    VIDEO_GUIDE,
+    STROLLER,
+    LACTATION_ROOM,
+    BABY_SPARE_CHAIR,
+    KIDS_FACILITY,
+    PET,
+    ETC
+}
