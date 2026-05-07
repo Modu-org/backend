@@ -74,7 +74,16 @@ public class TourApiJsonExtractor {
         if (value == null) {
             return null;
         }
-        return "1".equals(value) || "Y".equalsIgnoreCase(value) || "true".equalsIgnoreCase(value);
+
+        if ("1".equals(value) || "Y".equalsIgnoreCase(value) || "true".equalsIgnoreCase(value)) {
+            return true;
+        }
+
+        if ("0".equals(value) || "N".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value)) {
+            return false;
+        }
+
+        return null;
     }
 
     public LocalDateTime dateTime(JsonNode node, String fieldName) {

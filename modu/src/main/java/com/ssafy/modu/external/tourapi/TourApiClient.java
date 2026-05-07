@@ -1,5 +1,6 @@
 package com.ssafy.modu.external.tourapi;
 
+import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.ssafy.modu.global.TourApiProperties;
@@ -11,6 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.net.URI;
 import java.util.Map;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class TourApiClient {
@@ -37,9 +39,6 @@ public class TourApiClient {
                 .bodyToMono(String.class)
                 .block();
 
-        System.out.println("REQUEST URI = " + uri);
-        System.out.println("RESPONSE BODY = " + body);
-
         if (body == null || body.isBlank()) {
             throw new IllegalStateException("Tour API 응답이 비어 있습니다.");
         }
@@ -47,13 +46,13 @@ public class TourApiClient {
         String trimmed = body.trim();
 
         if (!trimmed.startsWith("{")) {
-            throw new IllegalStateException("Tour API가 JSON이 아닌 응답을 반환했습니다: " + trimmed);
+            throw new IllegalStateException("Tour API가 JSON이 아닌 응답을 반환했습니다. path=" + path);
         }
 
         try {
             return objectMapper.readTree(trimmed);
         } catch (Exception e) {
-            throw new IllegalStateException("Tour API JSON 파싱 실패: " + trimmed, e);
+            throw new IllegalStateException("Tour API JSON 파싱 실패. path=" + path, e);
         }
     }
 }

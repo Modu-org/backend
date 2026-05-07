@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
+
 @Service
 @RequiredArgsConstructor
 public class TourApiService {
@@ -39,16 +41,27 @@ public class TourApiService {
         return client.callKorWith(TourApiPath.DETAIL_WITH_TOUR, params);
     }
 
-    public JsonNode getSync(String modifiedTime) {
-        return getSync(modifiedTime, 1, 10, "1");
-    }
-
     public JsonNode getSync(String modifiedTime, int pageNo, int numOfRows, String showFlag) {
         Map<String, String> params = defaultParams(pageNo, numOfRows);
-        params.put("modifiedtime", modifiedTime);
-        params.put("showflag", showFlag);
+        // modifiedtime은 null/blank일 때 파라미터에 넣지 않는다.
+        // (API가 빈 값으로 처리하는 방식이 불명확하고, 배치에서 "전체 목록"과 "변경분 동기화"를 명확히 분리하기 위함)
+        if (modifiedTime != null && !modifiedTime.isBlank()) {
+            params.put("modifiedtime", modifiedTime);
+        }
+        params.put("showflag", defaultIfBlank(showFlag, "1"));
         params.put("arrange", "C");
         return client.callKor(TourApiPath.SYNC_LIST, params);
+    }
+
+    public JsonNode getAccessibleSync(String modifiedTime, int pageNo, int numOfRows, String showFlag) {
+        Map<String, String> params = defaultParams(pageNo, numOfRows);
+        // KorWithService2(무장애) 목록 동기화. modifiedtime 처리 규칙은 일반 목록과 동일.
+        if (modifiedTime != null && !modifiedTime.isBlank()) {
+            params.put("modifiedtime", modifiedTime);
+        }
+        params.put("showflag", showFlag);
+        params.put("arrange", "C");
+        return client.callKorWith(TourApiPath.SYNC_LIST, params);
     }
 
     private Map<String, String> defaultParams(int pageNo, int numOfRows) {
