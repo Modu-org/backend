@@ -44,7 +44,7 @@ public class AccessibilityInfo {
     private String sourceField;
 
     @Lob
-    @Column(name = "raw_value", nullable = false)
+    @Column(name = "raw_value", columnDefinition = "TEXT")
     private String rawValue;
 
     @Column(name = "source_priority", nullable = false)
