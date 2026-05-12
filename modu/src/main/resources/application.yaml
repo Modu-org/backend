@@ -10,7 +10,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
 
   data:
     redis:
@@ -24,3 +24,19 @@ tour-api:
   response-type: json
   kor-service-base-url: https://apis.data.go.kr/B551011/KorService2
   kor-with-service-base-url: https://apis.data.go.kr/B551011/KorWithService2
+
+
+tour-initial-load:
+  enabled: false
+  accessible-enabled: true
+  general-enabled: false
+  max-pages-per-run: 300
+  cron: "0 10 21 * * *"
+  zone: "Asia/Seoul"
+
+tour-batch:
+  enabled: true
+  cron: "0 45 21 * * *"
+  zone: Asia/Seoul
+  # max-pages: 50
+  detail-batch-size: 450

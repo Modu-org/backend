@@ -10,15 +10,33 @@ public class TourBatchFacade {
     private final TourDataImportService tourDataImportService;
 
     /**
-     * Controller 계층에서 "배치 유스케이스"를 깔끔하게 묶어주는 Facade.
-     * (컨트롤러가 서비스 내부 구현을 직접 조립하지 않도록 분리)
+     * 기존 호환용.
+     * startPage를 지정하지 않으면 1페이지부터 적재한다.
      */
     public TourImportResult runGeneralListImport(String modifiedTime, Integer maxPages) {
         return tourDataImportService.importGeneralList(modifiedTime, maxPages);
     }
 
+    /**
+     * 일반 관광 목록을 startPage부터 maxPages만큼 적재한다.
+     */
+    public TourImportResult runGeneralListImport(String modifiedTime, Integer startPage, Integer maxPages) {
+        return tourDataImportService.importGeneralList(modifiedTime, startPage, maxPages);
+    }
+
+    /**
+     * 기존 호환용.
+     * startPage를 지정하지 않으면 1페이지부터 적재한다.
+     */
     public TourImportResult runAccessibleListImport(String modifiedTime, Integer maxPages) {
         return tourDataImportService.importAccessibleList(modifiedTime, maxPages);
+    }
+
+    /**
+     * 무장애 관광 목록을 startPage부터 maxPages만큼 적재한다.
+     */
+    public TourImportResult runAccessibleListImport(String modifiedTime, Integer startPage, Integer maxPages) {
+        return tourDataImportService.importAccessibleList(modifiedTime, startPage, maxPages);
     }
 
     public TourBatchResult runAccessibleDetailImport(int batchSize) {
@@ -29,9 +47,16 @@ public class TourBatchFacade {
         return tourDataImportService.importCommonDetailForAccessibleCandidates(batchSize);
     }
 
+    /**
+     * modifiedTime 기준 변경분 동기화.
+     * Scheduler에서 사용하는 운영용 동기화 흐름이다.
+     *
+     * 이 메서드는 변경분 조회용이므로 startPage 없이 1페이지부터 maxPages만큼 조회한다.
+     */
     public TourBatchSyncResult runModifiedSync(String modifiedTime, Integer maxPages) {
         TourImportResult general = runGeneralListImport(modifiedTime, maxPages);
         TourImportResult accessible = runAccessibleListImport(modifiedTime, maxPages);
+
         return new TourBatchSyncResult(general, accessible);
     }
 }
