@@ -67,8 +67,9 @@ public class Attraction {
     private String thumbnailImageUrl;
 
     @Lob
-    @Column(name = "overview")
+    @Column(columnDefinition = "TEXT")
     private String overview;
+
 
     @Column(name = "l_dong_regn_cd", nullable = false, length = 10)
     private String lDongRegnCd;
