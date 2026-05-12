@@ -59,7 +59,7 @@ public class TourApiService {
         if (modifiedTime != null && !modifiedTime.isBlank()) {
             params.put("modifiedtime", modifiedTime);
         }
-        params.put("showflag", showFlag);
+        params.put("showflag", defaultIfBlank(showFlag, "1"));
         params.put("arrange", "C");
         return client.callKorWith(TourApiPath.SYNC_LIST, params);
     }
