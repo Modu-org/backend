@@ -33,6 +33,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       TOUR_API_SERVICE_KEY: ${TOUR_API_SERVICE_KEY}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "8080:8080"
 
