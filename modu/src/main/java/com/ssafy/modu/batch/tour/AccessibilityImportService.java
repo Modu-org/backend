@@ -12,7 +12,7 @@ import com.ssafy.modu.global.util.parser.AccessibilityStatusParser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 
 @Service
