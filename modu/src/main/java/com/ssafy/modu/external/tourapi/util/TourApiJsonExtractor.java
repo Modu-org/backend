@@ -1,6 +1,6 @@
 package com.ssafy.modu.external.tourapi.util;
 
-import tools.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
