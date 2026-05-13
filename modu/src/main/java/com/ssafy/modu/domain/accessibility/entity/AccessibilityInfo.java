@@ -1,5 +1,8 @@
 package com.ssafy.modu.domain.accessibility.entity;
 
+import com.ssafy.modu.domain.accessibility.entity.converter.AccessibilityCategoryConverter;
+import com.ssafy.modu.domain.accessibility.entity.converter.AccessibilityStatusConverter;
+import com.ssafy.modu.domain.accessibility.entity.converter.AccessibilityTypeConverter;
 import com.ssafy.modu.domain.accessibility.entity.enums.*;
 import com.ssafy.modu.domain.attraction.entity.Attraction;
 import jakarta.persistence.*;
@@ -50,16 +53,16 @@ public class AccessibilityInfo {
     @Column(name = "source_priority", nullable = false)
     private int sourcePriority;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "category", nullable = false, length = 30)
+    @Convert(converter = AccessibilityCategoryConverter.class)
+    @Column(name = "category", nullable = false, columnDefinition = "TINYINT")
     private AccessibilityCategory category;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, length = 50)
+    @Convert(converter = AccessibilityTypeConverter.class)
+    @Column(name = "type", nullable = false, columnDefinition = "TINYINT")
     private AccessibilityType type;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 30)
+    @Convert(converter = AccessibilityStatusConverter.class)
+    @Column(name = "status", nullable = false, columnDefinition = "TINYINT")
     private AccessibilityStatus status;
 
     @Column(name = "created_at", nullable = false, updatable = false)
