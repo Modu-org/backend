@@ -1,6 +1,6 @@
 package com.ssafy.modu.external.tourapi.controller;
 
-import tools.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.ssafy.modu.external.tourapi.TourApiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
