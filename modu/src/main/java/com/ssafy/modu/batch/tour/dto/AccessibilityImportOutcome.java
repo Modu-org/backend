@@ -1,4 +1,4 @@
-package com.ssafy.modu.batch.tour;
+package com.ssafy.modu.batch.tour.dto;
 
 /**
  * detailWithTour2 호출 결과 요약.

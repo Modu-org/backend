@@ -1,4 +1,6 @@
-package com.ssafy.modu.batch.tour;
+package com.ssafy.modu.batch.tour.dto;
+
+import com.ssafy.modu.batch.tour.cursor.TourBatchCursorJobType;
 
 public record TourInitialLoadResult(
         TourBatchCursorJobType jobType,

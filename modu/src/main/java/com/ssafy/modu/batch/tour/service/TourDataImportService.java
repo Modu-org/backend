@@ -1,16 +1,20 @@
-package com.ssafy.modu.batch.tour;
+package com.ssafy.modu.batch.tour.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.ssafy.modu.batch.tour.dto.AccessibilityImportOutcome;
+import com.ssafy.modu.batch.tour.dto.TourBatchResult;
+import com.ssafy.modu.batch.tour.dto.TourImportResult;
 import com.ssafy.modu.domain.attraction.entity.Attraction;
 import com.ssafy.modu.domain.attraction.entity.enums.TourDetailLoadStatus;
 import com.ssafy.modu.domain.attraction.repository.AttractionRepository;
 import com.ssafy.modu.external.tourapi.TourApiService;
-import com.ssafy.modu.external.tourapi.TourApiTrafficExceededException;
 import com.ssafy.modu.external.tourapi.util.TourApiJsonExtractor;
+import com.ssafy.modu.global.exception.BusinessException;
+import com.ssafy.modu.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.List;
 
@@ -29,43 +33,22 @@ public class TourDataImportService {
     private final AttractionRepository attractionRepository;
     private final AccessibilityImportService accessibilityImportService;
 
-    /**
-     * 기존 호환용.
-     * startPage를 지정하지 않으면 1페이지부터 시작한다.
-     */
     public TourImportResult importGeneralList(String modifiedTime, Integer maxPages) {
         return importGeneralList(modifiedTime, 1, maxPages);
     }
 
-    /**
-     * 일반 관광 목록(areaBasedSyncList2) 적재.
-     * modifiedTime이 null이면 전체 목록 기준으로 조회한다.
-     * startPage부터 maxPages만큼 페이지를 조회한다.
-     */
     public TourImportResult importGeneralList(String modifiedTime, Integer startPage, Integer maxPages) {
         return importSyncList(modifiedTime, startPage, maxPages, false);
     }
 
-    /**
-     * 기존 호환용.
-     * startPage를 지정하지 않으면 1페이지부터 시작한다.
-     */
     public TourImportResult importAccessibleList(String modifiedTime, Integer maxPages) {
         return importAccessibleList(modifiedTime, 1, maxPages);
     }
 
-    /**
-     * 무장애 관광 목록(areaBasedSyncList2) 적재.
-     * modifiedTime이 null이면 전체 목록 기준으로 조회한다.
-     * startPage부터 maxPages만큼 페이지를 조회한다.
-     */
     public TourImportResult importAccessibleList(String modifiedTime, Integer startPage, Integer maxPages) {
         return importSyncList(modifiedTime, startPage, maxPages, true);
     }
 
-    /**
-     * 무장애 후보 관광지에 대해 detailWithTour2를 batchSize만큼 처리한다.
-     */
     public TourBatchResult importAccessibleDetail(int batchSize) {
         int safeBatchSize = normalizeBatchSize(batchSize);
 
@@ -109,9 +92,7 @@ public class TourDataImportService {
                             e
                     );
 
-                    throw new TourApiTrafficExceededException(
-                            "Tour API traffic exceeded during accessibility detail import."
-                    );
+                    throw new BusinessException(ErrorCode.TOUR_API_TRAFFIC_EXCEEDED);
                 }
 
                 log.warn(
@@ -131,9 +112,6 @@ public class TourDataImportService {
         );
     }
 
-    /**
-     * 무장애 후보 관광지에 대해 detailCommon2를 batchSize만큼 처리한다.
-     */
     public TourBatchResult importCommonDetailForAccessibleCandidates(int batchSize) {
         int safeBatchSize = normalizeBatchSize(batchSize);
 
@@ -173,9 +151,7 @@ public class TourDataImportService {
                             e
                     );
 
-                    throw new TourApiTrafficExceededException(
-                            "Tour API traffic exceeded during common detail import."
-                    );
+                    throw new BusinessException(ErrorCode.TOUR_API_TRAFFIC_EXCEEDED);
                 }
 
                 log.warn(
@@ -195,16 +171,6 @@ public class TourDataImportService {
         );
     }
 
-    /**
-     * 일반/무장애 목록 공통 적재 로직.
-     *
-     * accessible=false:
-     * - KorService2 areaBasedSyncList2 호출
-     *
-     * accessible=true:
-     * - KorWithService2 areaBasedSyncList2 호출
-     * - 해당 관광지를 accessibleCandidate=true로 마킹
-     */
     private TourImportResult importSyncList(
             String modifiedTime,
             Integer startPage,
@@ -240,9 +206,7 @@ public class TourDataImportService {
                             e
                     );
 
-                    throw new TourApiTrafficExceededException(
-                            "Tour API traffic exceeded during sync list."
-                    );
+                    throw new BusinessException(ErrorCode.TOUR_API_TRAFFIC_EXCEEDED);
                 }
 
                 throw e;
@@ -371,9 +335,7 @@ public class TourDataImportService {
         String msg = extractor.resultMsg(root);
 
         if (looksLikeTrafficExceeded(msg)) {
-            throw new TourApiTrafficExceededException(
-                    "Tour API traffic/quota exceeded. code=" + code + " / " + msg
-            );
+            throw new BusinessException(ErrorCode.TOUR_API_TRAFFIC_EXCEEDED);
         }
 
         throw new IllegalStateException("Tour API error: " + code + " / " + msg);
@@ -383,7 +345,8 @@ public class TourDataImportService {
         Throwable cur = t;
 
         while (cur != null) {
-            if (cur instanceof TourApiTrafficExceededException) {
+            if (cur instanceof BusinessException businessException
+                    && businessException.getErrorCode() == ErrorCode.TOUR_API_TRAFFIC_EXCEEDED) {
                 return true;
             }
 

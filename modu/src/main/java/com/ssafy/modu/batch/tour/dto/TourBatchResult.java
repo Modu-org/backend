@@ -1,4 +1,4 @@
-package com.ssafy.modu.batch.tour;
+package com.ssafy.modu.batch.tour.dto;
 
 public record TourBatchResult(
         int processedAttractions,

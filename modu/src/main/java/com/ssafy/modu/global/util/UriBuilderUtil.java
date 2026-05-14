@@ -1,6 +1,6 @@
 package com.ssafy.modu.global.util;
 
-import com.ssafy.modu.global.TourApiProperties;
+import com.ssafy.modu.global.config.TourApiProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;

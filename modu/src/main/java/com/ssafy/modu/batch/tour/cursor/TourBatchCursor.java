@@ -1,5 +1,6 @@
-package com.ssafy.modu.batch.tour;
+package com.ssafy.modu.batch.tour.cursor;
 
+import com.ssafy.modu.batch.tour.dto.TourImportResult;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

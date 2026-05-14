@@ -1,4 +1,4 @@
-package com.ssafy.modu.global.util.mapper;
+package com.ssafy.modu.domain.accessibility.mapper;
 
 import com.ssafy.modu.domain.accessibility.entity.enums.AccessibilityCategory;
 import com.ssafy.modu.domain.accessibility.entity.enums.AccessibilityType;
