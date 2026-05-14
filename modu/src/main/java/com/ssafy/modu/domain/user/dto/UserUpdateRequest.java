@@ -15,7 +15,8 @@ public record UserUpdateRequest(
         @Min(0)
         @Max(6)
         Integer ageGroupCode,
-
+        @Size(max = 255)
+        String profileImg,
         @Min(1)
         @Max(5)
         Integer tripStyleCode,
