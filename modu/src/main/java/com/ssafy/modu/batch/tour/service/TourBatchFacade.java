@@ -1,5 +1,8 @@
-package com.ssafy.modu.batch.tour;
+package com.ssafy.modu.batch.tour.service;
 
+import com.ssafy.modu.batch.tour.dto.TourBatchResult;
+import com.ssafy.modu.batch.tour.dto.TourBatchSyncResult;
+import com.ssafy.modu.batch.tour.dto.TourImportResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

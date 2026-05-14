@@ -1,4 +1,4 @@
-package com.ssafy.modu.batch.tour;
+package com.ssafy.modu.batch.tour.cursor;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

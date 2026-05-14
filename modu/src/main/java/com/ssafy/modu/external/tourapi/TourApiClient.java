@@ -1,6 +1,8 @@
 package com.ssafy.modu.external.tourapi;
 
-import com.ssafy.modu.global.TourApiProperties;
+import com.ssafy.modu.global.config.TourApiProperties;
+import com.ssafy.modu.global.exception.BusinessException;
+import com.ssafy.modu.global.exception.ErrorCode;
 import com.ssafy.modu.global.util.UriBuilderUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,11 +46,7 @@ public class TourApiClient {
         } catch (WebClientResponseException e) {
             // Tour API 트래픽/쿼터 초과: 반복 작업을 즉시 중단한다.
             if (e.getStatusCode().value() == 429) {
-                throw new TourApiTrafficExceededException(
-                        "Tour API 트래픽 또는 일일 호출 한도를 초과했습니다. path=" + path,
-                        e.getStatusCode().value(),
-                        e
-                );
+                throw new BusinessException(ErrorCode.TOUR_API_TRAFFIC_EXCEEDED);
             }
             throw e;
         }

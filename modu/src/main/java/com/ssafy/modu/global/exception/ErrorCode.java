@@ -19,8 +19,10 @@ public enum ErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, 901, "인증이 필요합니다."),
 
     DUPLICATE_USER_NAME(HttpStatus.CONFLICT, 909, "이미 사용 중인 아이디입니다."),
-    USER_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "사용자를 찾을 수 없습니다.");
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "사용자를 찾을 수 없습니다."),
 
+
+    TOUR_API_TRAFFIC_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, 429, "Tour API 요청 한도를 초과했습니다.");
     private final HttpStatus httpStatus;
     private final int status;
     private final String message;

@@ -1,4 +1,4 @@
-package com.ssafy.modu.external.tourapi.controller;
+package com.ssafy.modu.admin.tour;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ssafy.modu.external.tourapi.TourApiService;

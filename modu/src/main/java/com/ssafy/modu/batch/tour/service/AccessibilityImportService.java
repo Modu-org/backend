@@ -1,14 +1,15 @@
-package com.ssafy.modu.batch.tour;
+package com.ssafy.modu.batch.tour.service;
 
+import com.ssafy.modu.batch.tour.dto.AccessibilityImportOutcome;
 import com.ssafy.modu.domain.accessibility.entity.AccessibilityInfo;
 import com.ssafy.modu.domain.accessibility.entity.enums.*;
 import com.ssafy.modu.domain.accessibility.repository.AccessibilityInfoRepository;
 import com.ssafy.modu.domain.attraction.entity.Attraction;
 import com.ssafy.modu.external.tourapi.TourApiService;
 import com.ssafy.modu.external.tourapi.util.TourApiJsonExtractor;
-import com.ssafy.modu.global.util.mapper.AccessibilityFieldMapper;
-import com.ssafy.modu.global.util.mapper.AccessibilityFieldMapping;
-import com.ssafy.modu.global.util.parser.AccessibilityStatusParser;
+import com.ssafy.modu.domain.accessibility.mapper.AccessibilityFieldMapper;
+import com.ssafy.modu.domain.accessibility.mapper.AccessibilityFieldMapping;
+import com.ssafy.modu.domain.accessibility.parser.AccessibilityStatusParser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -1,4 +1,4 @@
-package com.ssafy.modu.global.util.parser;
+package com.ssafy.modu.domain.accessibility.parser;
 
 import com.ssafy.modu.domain.accessibility.entity.enums.AccessibilityStatus;
 import org.springframework.stereotype.Component;

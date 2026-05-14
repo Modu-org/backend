@@ -1,4 +1,4 @@
-package com.ssafy.modu.batch.tour;
+package com.ssafy.modu.batch.tour.config;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,4 +1,4 @@
-package com.ssafy.modu.global;
+package com.ssafy.modu.global.config;
 
 import lombok.Getter;
 import lombok.Setter;
