@@ -3,7 +3,6 @@ package com.ssafy.modu.domain.user.service;
 import com.ssafy.modu.domain.user.dto.*;
 import com.ssafy.modu.domain.user.entity.User;
 import com.ssafy.modu.domain.user.entity.UserDetail;
-import com.ssafy.modu.domain.user.enums.UiMode;
 import com.ssafy.modu.domain.user.repository.UserRepository;
 import com.ssafy.modu.global.auth.jwt.JwtTokenProvider;
 import com.ssafy.modu.global.auth.redis.AccessTokenBlacklistRepository;
@@ -47,14 +46,10 @@ public class AuthService {
                 .build();
 
         UserDetail userDetail = UserDetail.builder()
-                .ageGroupCode(request.ageGroupCode())
-                .tripStyleCode(request.tripStyleCode())
-                .usesWheelchair(defaultFalse(request.usesWheelchair()))
-                .hasStroller(defaultFalse(request.hasStroller()))
-                .usesWalkingAid(defaultFalse(request.usesWalkingAid()))
-                .hasServiceDog(defaultFalse(request.hasServiceDog()))
-                .needsVisualAssistance(defaultFalse(request.needsVisualAssistance()))
-                .uiMode(request.uiMode() == null ? UiMode.STANDARD : request.uiMode())
+                .physical(defaultFalse(request.physical()))
+                .infantFamily(defaultFalse(request.infantFamily()))
+                .visual(defaultFalse(request.visual()))
+                .hearing(defaultFalse(request.hearing()))
                 .build();
 
         user.setUserDetail(userDetail);
@@ -98,14 +93,10 @@ public class AuthService {
                 accessToken,
                 user.getId(),
                 user.getNickname(),
-                userDetail.getAgeGroupCode(),
-                userDetail.getTripStyleCode(),
-                userDetail.getUsesWheelchair(),
-                userDetail.getHasStroller(),
-                userDetail.getUsesWalkingAid(),
-                userDetail.getHasServiceDog(),
-                userDetail.getNeedsVisualAssistance(),
-                userDetail.getUiMode()
+                userDetail.getPhysical(),
+                userDetail.getInfantFamily(),
+                userDetail.getVisual(),
+                userDetail.getHearing()
         );
 
         return new LoginServiceResult(
@@ -205,6 +196,7 @@ public class AuthService {
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
+
     private String resolveAccessToken(HttpServletRequest request) {
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
 

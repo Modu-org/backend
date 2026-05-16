@@ -5,7 +5,6 @@ import com.ssafy.modu.domain.user.dto.UserUpdateRequest;
 import com.ssafy.modu.domain.user.dto.UserUpdateResponse;
 import com.ssafy.modu.domain.user.entity.User;
 import com.ssafy.modu.domain.user.entity.UserDetail;
-import com.ssafy.modu.domain.user.enums.UiMode;
 import com.ssafy.modu.domain.user.repository.UserRepository;
 import com.ssafy.modu.global.exception.BusinessException;
 import com.ssafy.modu.global.exception.ErrorCode;
@@ -29,14 +28,10 @@ public class UserService {
                 user.getUserName(),
                 user.getNickname(),
                 user.getProfileImg(),
-                userDetail.getAgeGroupCode(),
-                userDetail.getTripStyleCode(),
-                userDetail.getUsesWheelchair(),
-                userDetail.getHasStroller(),
-                userDetail.getUsesWalkingAid(),
-                userDetail.getHasServiceDog(),
-                userDetail.getNeedsVisualAssistance(),
-                userDetail.getUiMode()
+                userDetail.getPhysical(),
+                userDetail.getInfantFamily(),
+                userDetail.getVisual(),
+                userDetail.getHearing()
         );
     }
 
@@ -51,20 +46,15 @@ public class UserService {
         );
 
         userDetail.updateDetail(
-                request.ageGroupCode(),
-                request.tripStyleCode(),
-                defaultFalse(request.usesWheelchair()),
-                defaultFalse(request.hasStroller()),
-                defaultFalse(request.usesWalkingAid()),
-                defaultFalse(request.hasServiceDog()),
-                defaultFalse(request.needsVisualAssistance()),
-                request.uiMode() == null ? UiMode.STANDARD : request.uiMode()
+                defaultFalse(request.physical()),
+                defaultFalse(request.infantFamily()),
+                defaultFalse(request.visual()),
+                defaultFalse(request.hearing())
         );
 
         return new UserUpdateResponse(
                 user.getId(),
-                user.getNickname(),
-                userDetail.getUiMode()
+                user.getNickname()
         );
     }
 
