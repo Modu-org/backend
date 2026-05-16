@@ -1,6 +1,5 @@
 package com.ssafy.modu.domain.user.entity;
 
-import com.ssafy.modu.domain.user.enums.UiMode;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,30 +20,17 @@ public class UserDetail {
     @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(name = "uses_wheelchair")
-    private Boolean usesWheelchair;
+    @Column(name = "physical", nullable = false)
+    private Boolean physical;
 
-    @Column(name = "has_stroller")
-    private Boolean hasStroller;
+    @Column(name = "infant_family", nullable = false)
+    private Boolean infantFamily;
 
-    @Column(name = "uses_walking_aid")
-    private Boolean usesWalkingAid;
+    @Column(name = "visual", nullable = false)
+    private Boolean visual;
 
-    @Column(name = "has_service_dog")
-    private Boolean hasServiceDog;
-
-    @Column(name = "needs_visual_assistance")
-    private Boolean needsVisualAssistance;
-
-    @Column(name = "age_group_code")
-    private Integer ageGroupCode;
-
-    @Column(name = "trip_style_code")
-    private Integer tripStyleCode;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "ui_mode", nullable = false, length = 10)
-    private UiMode uiMode;
+    @Column(name = "hearing", nullable = false)
+    private Boolean hearing;
 
     void setUser(User user) {
         this.user = user;
@@ -52,28 +38,32 @@ public class UserDetail {
 
     @PrePersist
     protected void onCreate() {
-        if (this.uiMode == null) {
-            this.uiMode = UiMode.STANDARD;
+        if (this.physical == null) {
+            this.physical = false;
+        }
+
+        if (this.infantFamily == null) {
+            this.infantFamily = false;
+        }
+
+        if (this.visual == null) {
+            this.visual = false;
+        }
+
+        if (this.hearing == null) {
+            this.hearing = false;
         }
     }
 
     public void updateDetail(
-            Integer ageGroupCode,
-            Integer tripStyleCode,
-            Boolean usesWheelchair,
-            Boolean hasStroller,
-            Boolean usesWalkingAid,
-            Boolean hasServiceDog,
-            Boolean needsVisualAssistance,
-            UiMode uiMode
+            Boolean physical,
+            Boolean infantFamily,
+            Boolean visual,
+            Boolean hearing
     ) {
-        this.ageGroupCode = ageGroupCode;
-        this.tripStyleCode = tripStyleCode;
-        this.usesWheelchair = usesWheelchair;
-        this.hasStroller = hasStroller;
-        this.usesWalkingAid = usesWalkingAid;
-        this.hasServiceDog = hasServiceDog;
-        this.needsVisualAssistance = needsVisualAssistance;
-        this.uiMode = uiMode;
+        this.physical = physical;
+        this.infantFamily = infantFamily;
+        this.visual = visual;
+        this.hearing = hearing;
     }
 }

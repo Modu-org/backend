@@ -1,6 +1,6 @@
 package com.ssafy.modu.domain.user.dto;
 
-import com.ssafy.modu.domain.user.enums.UiMode;
+
 import jakarta.validation.constraints.*;
 
 public record SignupRequest(
@@ -18,20 +18,13 @@ public record SignupRequest(
         @Size(max = 20)
         String nickname,
 
-        @Min(0)
-        @Max(6)
-        Integer ageGroupCode,
+        Boolean physical,
 
-        @Min(1)
-        @Max(5)
-        Integer tripStyleCode,
+        Boolean infantFamily,
 
-        Boolean usesWheelchair,
-        Boolean hasStroller,
-        Boolean usesWalkingAid,
-        Boolean hasServiceDog,
-        Boolean needsVisualAssistance,
+        Boolean visual,
 
-        UiMode uiMode
+        Boolean hearing
+
 ) {
 }
