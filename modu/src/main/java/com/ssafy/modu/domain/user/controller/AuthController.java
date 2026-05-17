@@ -1,4 +1,4 @@
-package com.ssafy.modu.global.auth.controller;
+package com.ssafy.modu.domain.user.controller;
 
 import com.ssafy.modu.domain.user.dto.*;
 import com.ssafy.modu.domain.user.service.AuthService;
