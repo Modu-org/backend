@@ -18,13 +18,13 @@ public class User {
     @Column(name = "user_id")
     private Long id;
 
-    @Column(name = "user_name", nullable = false, length = 30, unique = true)
+    @Column(name = "user_name", nullable = false, length = 100, unique = true)
     private String userName;
 
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 20, unique = true)
     private String nickname;
 
     @Column(name = "profile_img", length = 255)
@@ -71,5 +71,21 @@ public class User {
 
     public void delete() {
         this.isDeleted = true;
+    }
+
+    public static User createSocialUser(
+            String userName,
+            String password,
+            String nickname,
+            String profileImg
+    ) {
+        User user = new User();
+        user.userName = userName;
+        user.password = password;
+        user.nickname = nickname;
+        user.profileImg = profileImg;
+        user.isDeleted = false;
+
+        return user;
     }
 }
