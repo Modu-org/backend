@@ -95,7 +95,6 @@ public class SecurityConfig {
                                 "/api/auth/refresh",
                                 "/api/auth/check-id",
                                 "/api/auth/logout",
-                                "/api/auth/oauth/token",
                                 "/oauth2/**",
                                 "/login/oauth2/**"
                         ).permitAll()

@@ -5,7 +5,6 @@ import com.ssafy.modu.domain.user.entity.User;
 import com.ssafy.modu.domain.user.entity.UserDetail;
 import com.ssafy.modu.domain.user.repository.UserRepository;
 import com.ssafy.modu.global.auth.jwt.JwtTokenProvider;
-import com.ssafy.modu.global.auth.oauth.OAuth2LoginCodeRepository;
 import com.ssafy.modu.global.auth.redis.AccessTokenBlacklistRepository;
 import com.ssafy.modu.global.auth.redis.RefreshTokenRepository;
 import com.ssafy.modu.global.exception.BusinessException;
@@ -32,7 +31,6 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final AccessTokenBlacklistRepository accessTokenBlacklistRepository;
-    private final OAuth2LoginCodeRepository oAuth2LoginCodeRepository;
 
     @Transactional
     public SignupResponse signup(SignupRequest request) {
@@ -211,14 +209,5 @@ public class AuthService {
         }
 
         return authorization.substring("Bearer ".length());
-    }
-    public RefreshResponse exchangeOAuthLoginCode(String code) {
-        String accessToken = oAuth2LoginCodeRepository.getAndDelete(code);
-
-        if (accessToken == null || accessToken.isBlank()) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-
-        return new RefreshResponse(accessToken);
     }
 }

@@ -93,15 +93,4 @@ public class AuthController {
                 ApiResponse.success(message, response)
         );
     }
-
-    @GetMapping("/oauth/token")
-    public ResponseEntity<ApiResponse<RefreshResponse>> oauthToken(
-            @RequestParam String code
-    ) {
-        RefreshResponse response = authService.exchangeOAuthLoginCode(code);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("소셜 로그인에 성공했습니다.", response)
-        );
-    }
 }

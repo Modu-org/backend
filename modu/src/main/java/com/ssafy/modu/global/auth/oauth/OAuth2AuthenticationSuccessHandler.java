@@ -11,7 +11,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -24,7 +23,6 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final OAuth2LoginCodeRepository oAuth2LoginCodeRepository;
     private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
 
     @Value("${app.oauth2.redirect-uri}")
@@ -51,8 +49,11 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
         String sessionId = UUID.randomUUID().toString();
 
-        String accessToken = jwtTokenProvider.createAccessToken(userId, userName);
-        String refreshToken = jwtTokenProvider.createRefreshToken(userId, userName, sessionId);
+        String refreshToken = jwtTokenProvider.createRefreshToken(
+                userId,
+                userName,
+                sessionId
+        );
 
         long refreshTokenExpirationMillis =
                 jwtTokenProvider.getRefreshTokenExpirationMillis();
@@ -63,8 +64,6 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
                 refreshToken,
                 refreshTokenExpirationMillis
         );
-
-        String loginCode = oAuth2LoginCodeRepository.save(accessToken);
 
         response.addHeader(
                 HttpHeaders.SET_COOKIE,
@@ -78,12 +77,6 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
 
         authorizationRequestRepository.deleteCookie(request, response);
 
-        String targetUrl = UriComponentsBuilder
-                .fromUriString(redirectUri)
-                .queryParam("code", loginCode)
-                .build()
-                .toUriString();
-
-        response.sendRedirect(targetUrl);
+        response.sendRedirect(redirectUri);
     }
 }
