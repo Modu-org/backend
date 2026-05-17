@@ -88,6 +88,7 @@ public class SecurityConfig {
                                 "/api/auth/check-id",
                                 "/api/auth/logout"
                         ).permitAll()
+                        .requestMatchers("/health").permitAll()
 
                         // Swagger 문서 접근 허용
                         .requestMatchers(
