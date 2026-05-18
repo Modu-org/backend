@@ -4,6 +4,7 @@ import com.ssafy.modu.domain.user.dto.*;
 import com.ssafy.modu.domain.user.service.AuthService;
 import com.ssafy.modu.domain.user.service.LoginServiceResult;
 import com.ssafy.modu.global.common.ApiResponse;
+import com.ssafy.modu.global.common.SuccessCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +37,7 @@ public class AuthController {
 
         return ResponseEntity
                 .status(201)
-                .body(ApiResponse.success("회원가입이 완료되었습니다.", response));
+                .body(ApiResponse.success(SuccessCode.CREATED,"회원가입이 완료되었습니다.", response));
     }
 
     @PostMapping("/login")
@@ -55,7 +56,7 @@ public class AuthController {
                                 cookieSameSite
                         ).toString()
                 )
-                .body(ApiResponse.success("로그인에 성공했습니다.", result.loginResponse()));
+                .body(ApiResponse.success(SuccessCode.OK,"로그인에 성공했습니다.", result.loginResponse()));
     }
 
     @PostMapping("/logout")
@@ -67,7 +68,7 @@ public class AuthController {
                         HttpHeaders.SET_COOKIE,
                         deleteRefreshTokenCookie(cookieSecure, cookieSameSite).toString()
                 )
-                .body(ApiResponse.success("로그아웃되었습니다."));
+                .body(ApiResponse.success(SuccessCode.OK,"로그아웃되었습니다."));
     }
 
     @PostMapping("/refresh")
@@ -75,7 +76,7 @@ public class AuthController {
         RefreshResponse response = authService.refresh(request);
 
         return ResponseEntity.ok(
-                ApiResponse.success("Access Token이 재발급되었습니다.", response)
+                ApiResponse.success(SuccessCode.OK,"Access Token이 재발급되었습니다.", response)
         );
     }
 
@@ -90,7 +91,7 @@ public class AuthController {
                 : "이미 사용 중인 아이디입니다.";
 
         return ResponseEntity.ok(
-                ApiResponse.success(message, response)
+                ApiResponse.success(SuccessCode.OK,message, response)
         );
     }
 }
