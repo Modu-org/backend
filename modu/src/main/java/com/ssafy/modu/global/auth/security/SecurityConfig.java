@@ -2,6 +2,10 @@ package com.ssafy.modu.global.auth.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.modu.global.auth.jwt.JwtAuthenticationFilter;
+import com.ssafy.modu.global.auth.oauth.CustomOAuth2UserService;
+import com.ssafy.modu.global.auth.oauth.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.ssafy.modu.global.auth.oauth.OAuth2AuthenticationFailureHandler;
+import com.ssafy.modu.global.auth.oauth.OAuth2AuthenticationSuccessHandler;
 import com.ssafy.modu.global.exception.ErrorCode;
 import com.ssafy.modu.global.exception.ErrorResponse;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +20,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -34,6 +37,11 @@ public class SecurityConfig {
 
     // JWT 토큰을 검증하고 SecurityContext에 인증 정보를 저장하는 커스텀 필터
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+    private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
 
     // 인증 실패 시 JSON 형태의 에러 응답을 만들기 위해 사용
     private final ObjectMapper objectMapper;
@@ -86,8 +94,11 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/refresh",
                                 "/api/auth/check-id",
-                                "/api/auth/logout"
+                                "/api/auth/logout",
+                                "/oauth2/**",
+                                "/login/oauth2/**"
                         ).permitAll()
+                        .requestMatchers("/health").permitAll()
 
                         // Swagger 문서 접근 허용
                         .requestMatchers(
@@ -97,6 +108,16 @@ public class SecurityConfig {
 
                         // 위에서 허용한 경로를 제외한 모든 요청은 인증 필요
                         .anyRequest().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(authorization -> authorization
+                                .authorizationRequestRepository(authorizationRequestRepository)
+                        )
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        .successHandler(oAuth2AuthenticationSuccessHandler)
+                        .failureHandler(oAuth2AuthenticationFailureHandler)
                 )
 
                 // 인증/인가 예외 처리 설정
@@ -153,17 +174,6 @@ public class SecurityConfig {
             AuthenticationConfiguration authenticationConfiguration
     ) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
-    }
-
-    /**
-     * 비밀번호 암호화에 사용할 PasswordEncoder 등록.
-     *
-     * 회원가입 시 비밀번호를 BCrypt로 암호화하고,
-     * 로그인 시 입력된 비밀번호와 암호화된 비밀번호를 비교한다.
-     */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 
     @Bean
