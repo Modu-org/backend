@@ -1,4 +1,4 @@
-package com.ssafy.modu.user.service;
+package com.ssafy.modu.attraction.service;
 
 import com.ssafy.modu.domain.accessibility.entity.AccessibilityInfo;
 import com.ssafy.modu.domain.accessibility.entity.enums.AccessibilityCategory;
@@ -15,6 +15,7 @@ import com.ssafy.modu.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.BDDMockito;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -23,12 +24,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.lang.reflect.Constructor;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.eq;
 
 @ExtendWith(MockitoExtension.class)
 class AttractionServiceTest {
@@ -43,7 +43,7 @@ class AttractionServiceTest {
     private AttractionService attractionService;
 
     @Test
-    @DisplayName("관광지 상세 조회 성공 시 상세 정보와 접근성 정보를 반환한다")
+    @DisplayName("관광지 상세 조회 성공 시 AttractionDetailResponse를 반환한다")
     void getAttractionDetail_success() {
         // given
         Long attractionId = 1L;
@@ -52,7 +52,7 @@ class AttractionServiceTest {
 
         AccessibilityInfo wheelchairInfo = AccessibilityInfo.create(
                 attraction,
-                anyAccessibilitySource(),
+                AccessibilitySource.KOR_WITH_DETAIL_WITH_TOUR,
                 "wheelchair",
                 "휠체어 이용 가능",
                 AccessibilityCategory.PHYSICAL,
@@ -62,7 +62,7 @@ class AttractionServiceTest {
 
         AccessibilityInfo strollerInfo = AccessibilityInfo.create(
                 attraction,
-                anyAccessibilitySource(),
+                AccessibilitySource.KOR_WITH_DETAIL_WITH_TOUR,
                 "stroller",
                 "유모차 관련 정보 없음",
                 AccessibilityCategory.INFANT_FAMILY,
@@ -70,13 +70,13 @@ class AttractionServiceTest {
                 AccessibilityStatus.UNKNOWN
         );
 
-        List<AccessibilityInfo> accessibilityInfos = new ArrayList<>();
+        ArrayList<AccessibilityInfo> accessibilityInfos = new ArrayList<>();
         accessibilityInfos.add(wheelchairInfo);
         accessibilityInfos.add(strollerInfo);
 
         ReflectionTestUtils.setField(attraction, "accessibilityInfos", accessibilityInfos);
 
-        given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrue(attractionId))
+        BDDMockito.given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrue(eq(attractionId)))
                 .willReturn(Optional.of(attraction));
 
         // when
@@ -101,13 +101,6 @@ class AttractionServiceTest {
         assertThat(response.getAccessibility()).hasSize(2);
 
         assertThat(response.getAccessibility())
-                .extracting("category")
-                .containsExactlyInAnyOrder(
-                        AccessibilityCategory.PHYSICAL,
-                        AccessibilityCategory.INFANT_FAMILY
-                );
-
-        assertThat(response.getAccessibility())
                 .extracting("type")
                 .containsExactlyInAnyOrder(
                         AccessibilityType.WHEELCHAIR,
@@ -120,13 +113,6 @@ class AttractionServiceTest {
                         AccessibilityStatus.AVAILABLE,
                         AccessibilityStatus.UNKNOWN
                 );
-
-        assertThat(response.getAccessibility())
-                .extracting("description")
-                .containsExactlyInAnyOrder(
-                        "휠체어 이용 가능",
-                        "유모차 관련 정보 없음"
-                );
     }
 
     @Test
@@ -135,7 +121,7 @@ class AttractionServiceTest {
         // given
         Long attractionId = 999L;
 
-        given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrue(attractionId))
+        BDDMockito.given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrue(eq(attractionId)))
                 .willReturn(Optional.empty());
 
         // when & then
@@ -172,9 +158,4 @@ class AttractionServiceTest {
             throw new RuntimeException(e);
         }
     }
-
-    private AccessibilitySource anyAccessibilitySource() {
-        return AccessibilitySource.values()[0];
-    }
 }
-

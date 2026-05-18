@@ -6,6 +6,7 @@ import com.ssafy.modu.domain.user.dto.UserUpdateResponse;
 import com.ssafy.modu.domain.user.service.UserService;
 import com.ssafy.modu.global.auth.security.CustomUserDetails;
 import com.ssafy.modu.global.common.ApiResponse;
+import com.ssafy.modu.global.common.SuccessCode;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +27,7 @@ public class UserController {
         UserMeResponse response = userService.getMe(userDetails.getUserId());
 
         return ResponseEntity.ok(
-                ApiResponse.success("내 정보 조회에 성공했습니다.", response)
+                ApiResponse.success(SuccessCode.OK,"내 정보 조회에 성공했습니다.", response)
         );
     }
 
@@ -38,7 +39,7 @@ public class UserController {
         UserUpdateResponse response = userService.updateMe(userDetails.getUserId(), request);
 
         return ResponseEntity.ok(
-                ApiResponse.success("내 정보가 수정되었습니다.", response)
+                ApiResponse.success(SuccessCode.OK,"내 정보가 수정되었습니다.", response)
         );
     }
 }

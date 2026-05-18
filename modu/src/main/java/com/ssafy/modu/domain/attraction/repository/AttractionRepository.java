@@ -2,13 +2,15 @@ package com.ssafy.modu.domain.attraction.repository;
 
 import com.ssafy.modu.domain.attraction.entity.Attraction;
 import com.ssafy.modu.domain.attraction.entity.enums.TourDetailLoadStatus;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface AttractionRepository extends JpaRepository<Attraction, Long> {
+public interface AttractionRepository extends JpaRepository<Attraction, Long>, JpaSpecificationExecutor<Attraction>{
 
     Optional<Attraction> findByContentId(String contentId);
 
@@ -16,6 +18,8 @@ public interface AttractionRepository extends JpaRepository<Attraction, Long> {
 
     List<Attraction> findByContentTypeId(String contentTypeId);
 
+    @EntityGraph(attributePaths = "accessibilityInfos")
+    Optional<Attraction> findWithAccessibilityInfosByIdAndShowFlagTrue(Long id);
     /**
      * 무장애 후보(목록에 등장) 중, 아직 detailWithTour2를 호출하지 않은 대상 조회.
      * NOT_STARTED만 대상으로 잡아야 NO_DATA/SUCCESS가 반복 호출되지 않는다.
