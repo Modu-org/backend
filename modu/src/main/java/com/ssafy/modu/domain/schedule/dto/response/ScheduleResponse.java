@@ -1,0 +1,32 @@
+package com.ssafy.modu.domain.schedule.dto.response;
+
+import com.ssafy.modu.domain.schedule.entity.Schedule;
+import lombok.Builder;
+import lombok.Getter;
+
+import java.time.LocalDate;
+// 스케줄 생성/수정 응답 DTO -> 스케줄의 기본 정보 반환
+@Getter
+@Builder
+public class ScheduleResponse {
+
+    private Long scheduleId;
+    private String title;
+    private String region;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private Integer peopleCount;
+    private Integer budget;
+
+    public static ScheduleResponse from(Schedule schedule) {
+        return ScheduleResponse.builder()
+                .scheduleId(schedule.getId())
+                .title(schedule.getTitle())
+                .region(schedule.getRegion())
+                .startDate(schedule.getStartDate())
+                .endDate(schedule.getEndDate())
+                .peopleCount(schedule.getPeopleCount())
+                .budget(schedule.getBudget())
+                .build();
+    }
+}
