@@ -23,7 +23,19 @@ public enum ErrorCode {
 
 
     TOUR_API_TRAFFIC_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, 429, "Tour API 요청 한도를 초과했습니다."),
-    ATTRACTION_NOT_FOUND(HttpStatus.NOT_FOUND,904,"존재하지 않는 관광지입니다.");
+    ATTRACTION_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "존재하지 않는 관광지입니다."),
+
+    SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "존재하지 않는 여행 스케줄입니다."),
+    NODE_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "존재하지 않는 노드입니다."),
+    INVALID_TRIP_DATE(HttpStatus.BAD_REQUEST, 904, "여행 시작일은 종료일보다 늦을 수 없습니다."),
+    INVALID_BUDGET(HttpStatus.BAD_REQUEST, 904, "예산은 0원 이상이어야 합니다."),
+    INVALID_PEOPLE_COUNT(HttpStatus.BAD_REQUEST, 904, "인원 수는 1명 이상이어야합니다."),
+    INVALID_NODE_VISIT_DATE(HttpStatus.BAD_REQUEST, 904, "노드 방문일자는 여행 기간 안에 있어야 합니다."),
+    INVALID_NODE_VISIT_ORDER(HttpStatus.BAD_REQUEST, 904, "노드 방문 순서는 1 이상이어야 합니다."),
+    DUPLICATE_NODE_IN_REQUEST(HttpStatus.BAD_REQUEST, 904, "중복된 노드가 요청에 포함되어 있습니다."),
+    NODE_ARRANGEMENT_EMPTY(HttpStatus.BAD_REQUEST,909, "노드 배치 정보가 비어 있습니다."),
+    DUPLICATE_VISIT_ORDER(HttpStatus.BAD_REQUEST,909,"방문 순서가 겹칩니다."),
+    INVALID_VISIT_ORDER_SEQUENCE(HttpStatus.BAD_REQUEST,909,"방문 순서는 1부터 연속되어야 합니다." );
     private final HttpStatus httpStatus;
     private final int status;
     private final String message;
