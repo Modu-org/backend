@@ -70,9 +70,14 @@ public class AttractionService {
 
             예:
             요청에 physical이 없으면 userDetail.getPhysical() 값을 사용한다.
+
+            userId가 null인 경우(비인증 사용자):
+            - UserDetail 조회를 건너뛰고 요청 파라미터만으로 카테고리를 결정한다.
          */
-        UserDetail userDetail = userDetailRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(USER_NOT_FOUND));
+        UserDetail userDetail = userId != null
+                ? userDetailRepository.findById(userId)
+                        .orElseThrow(() -> new BusinessException(USER_NOT_FOUND))
+                : null;
 
         /*
             실제 검색에 사용할 접근성 카테고리 목록을 만든다.
@@ -197,32 +202,33 @@ public class AttractionService {
             지체장애/이동약자 관련 필터 여부 결정.
 
             request.getPhysical() 값이 null이 아니면 요청값 사용.
-            null이면 userDetail.getPhysical() 값 사용.
+            null이면 userDetail이 존재하는 경우 userDetail.getPhysical() 값 사용.
+            userDetail도 null이면 false로 처리한다.
          */
         boolean physical = request.getPhysical() != null
                 ? request.getPhysical()
-                : Boolean.TRUE.equals(userDetail.getPhysical());
+                : userDetail != null && Boolean.TRUE.equals(userDetail.getPhysical());
 
         /*
             영유아 가족 관련 필터 여부 결정.
          */
         boolean infantFamily = request.getInfantFamily() != null
                 ? request.getInfantFamily()
-                : Boolean.TRUE.equals(userDetail.getInfantFamily());
+                : userDetail != null && Boolean.TRUE.equals(userDetail.getInfantFamily());
 
         /*
             시각장애 관련 필터 여부 결정.
          */
         boolean visual = request.getVisual() != null
                 ? request.getVisual()
-                : Boolean.TRUE.equals(userDetail.getVisual());
+                : userDetail != null && Boolean.TRUE.equals(userDetail.getVisual());
 
         /*
             청각장애 관련 필터 여부 결정.
          */
         boolean hearing = request.getHearing() != null
                 ? request.getHearing()
-                : Boolean.TRUE.equals(userDetail.getHearing());
+                : userDetail != null && Boolean.TRUE.equals(userDetail.getHearing());
 
         /*
             physical이 true이면 검색 조건에 PHYSICAL 카테고리를 추가한다.
