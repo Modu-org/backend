@@ -100,6 +100,9 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/health").permitAll()
 
+                        // 음성 검색 API: 비인증 사용자도 접근 가능
+                        .requestMatchers("/api/voice-search/**").permitAll()
+
                         // Swagger 문서 접근 허용
                         .requestMatchers(
                                 "/swagger-ui/**",

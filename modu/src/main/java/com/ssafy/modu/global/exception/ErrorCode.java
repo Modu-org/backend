@@ -21,7 +21,6 @@ public enum ErrorCode {
     DUPLICATE_USER_NAME(HttpStatus.CONFLICT, 909, "이미 사용 중인 아이디입니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "사용자를 찾을 수 없습니다."),
 
-
     TOUR_API_TRAFFIC_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, 429, "Tour API 요청 한도를 초과했습니다."),
     ATTRACTION_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "존재하지 않는 관광지입니다."),
 
@@ -33,9 +32,14 @@ public enum ErrorCode {
     INVALID_NODE_VISIT_DATE(HttpStatus.BAD_REQUEST, 904, "노드 방문일자는 여행 기간 안에 있어야 합니다."),
     INVALID_NODE_VISIT_ORDER(HttpStatus.BAD_REQUEST, 904, "노드 방문 순서는 1 이상이어야 합니다."),
     DUPLICATE_NODE_IN_REQUEST(HttpStatus.BAD_REQUEST, 904, "중복된 노드가 요청에 포함되어 있습니다."),
-    NODE_ARRANGEMENT_EMPTY(HttpStatus.BAD_REQUEST,909, "노드 배치 정보가 비어 있습니다."),
-    DUPLICATE_VISIT_ORDER(HttpStatus.BAD_REQUEST,909,"방문 순서가 겹칩니다."),
-    INVALID_VISIT_ORDER_SEQUENCE(HttpStatus.BAD_REQUEST,909,"방문 순서는 1부터 연속되어야 합니다." );
+    NODE_ARRANGEMENT_EMPTY(HttpStatus.BAD_REQUEST, 909, "노드 배치 정보가 비어 있습니다."),
+    DUPLICATE_VISIT_ORDER(HttpStatus.BAD_REQUEST, 909, "방문 순서가 겹칩니다."),
+    INVALID_VISIT_ORDER_SEQUENCE(HttpStatus.BAD_REQUEST, 909, "방문 순서는 1부터 연속되어야 합니다."),
+
+    AI_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, 500, "AI API 호출에 실패했습니다."),
+    VOICE_SEARCH_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, 500, "음성 검색 결과 파싱에 실패했습니다."),
+    INVALID_VOICE_SEARCH_TYPE(HttpStatus.BAD_REQUEST, 900, "지원하지 않는 음성 검색 유형입니다.");
+
     private final HttpStatus httpStatus;
     private final int status;
     private final String message;
