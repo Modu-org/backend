@@ -70,4 +70,13 @@ public class TourApiService {
         map.put("pageNo", String.valueOf(pageNo));
         return map;
     }
+
+    public JsonNode getAllLDongCodes() {
+        Map<String, String> params = defaultParams(1, 1000);
+
+        // 전체 시도 + 시군구 목록 조회
+        params.put("lDongListYn", "Y");
+
+        return client.callKor(TourApiPath.LDONG_CODE, params);
+    }
 }

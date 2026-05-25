@@ -9,4 +9,5 @@ public final class TourApiPath {
     public static final String DETAIL_INFO = "/detailInfo2";
     public static final String DETAIL_WITH_TOUR = "/detailWithTour2";
     public static final String SYNC_LIST = "/areaBasedSyncList2";
+    public static final String LDONG_CODE = "/ldongCode2";
 }
