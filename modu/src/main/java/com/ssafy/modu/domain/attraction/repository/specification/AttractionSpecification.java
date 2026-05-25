@@ -144,8 +144,7 @@ public class AttractionSpecification {
          */
         predicates.add(cb.or(
                 cb.like(root.get("name"), keyword),
-                cb.like(root.get("address"), keyword),
-                cb.like(root.get("overview"), keyword)
+                cb.like(root.get("address"), keyword)
         ));
     }
 
