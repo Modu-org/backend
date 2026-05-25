@@ -106,7 +106,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
                         .requestMatchers(
-                                "/api/regions"
+                                "/api/regions/**"
                         ).permitAll()
 
                         // 위에서 허용한 경로를 제외한 모든 요청은 인증 필요

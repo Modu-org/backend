@@ -1,4 +1,4 @@
-package com.ssafy.modu.external.tourapi.dto;
+package com.ssafy.modu.domain.region.dto;
 
 import java.util.List;
 
