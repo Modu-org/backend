@@ -28,8 +28,6 @@ public class ScheduleDetailResponse {
     private String region;
     private LocalDate startDate;
     private LocalDate endDate;
-    private Integer peopleCount;
-    private Integer budget;
     private List<ScheduleDayResponse> days;
     private List<NodeResponse> unscheduledNodes;
 
@@ -67,8 +65,6 @@ public class ScheduleDetailResponse {
                 .region(schedule.getRegion())
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
-                .peopleCount(schedule.getPeopleCount())
-                .budget(schedule.getBudget())
                 .days(days)
                 .unscheduledNodes(unscheduledNodes)
                 .build();

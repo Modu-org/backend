@@ -39,12 +39,6 @@ public class Schedule {
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
-    @Column(name = "people_count", nullable = false)
-    private Integer peopleCount;
-
-    @Column(nullable = false)
-    private Integer budget;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -55,27 +49,21 @@ public class Schedule {
     @OrderBy("visitDate ASC, visitOrder ASC, id ASC")
     private List<Node> nodes = new ArrayList<>();
 
-    public static Schedule create(User user, String title, String region, LocalDate startDate, LocalDate endDate,
-                                  Integer peopleCount, Integer budget) {
+    public static Schedule create(User user, String title, String region, LocalDate startDate, LocalDate endDate) {
         Schedule schedule = new Schedule();
         schedule.user = user;
         schedule.title = normalizeTitle(title);
         schedule.region = region;
         schedule.startDate = startDate;
         schedule.endDate = endDate;
-        schedule.peopleCount = peopleCount;
-        schedule.budget = budget;
         return schedule;
     }
 
-    public void update(String title, String region, LocalDate startDate, LocalDate endDate,
-                       Integer peopleCount, Integer budget) {
+    public void update(String title, String region, LocalDate startDate, LocalDate endDate) {
         this.title = normalizeTitle(title);
         this.region = region;
         this.startDate = startDate;
         this.endDate = endDate;
-        this.peopleCount = peopleCount;
-        this.budget = budget;
     }
 
     public void addNode(Node node) {
