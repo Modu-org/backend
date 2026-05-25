@@ -15,8 +15,6 @@ public class ScheduleSummaryResponse {
     private String region;
     private LocalDate startDate;
     private LocalDate endDate;
-    private Integer peopleCount;
-    private Integer budget;
     private long nodeCount;
 
     public static ScheduleSummaryResponse of(Schedule schedule, long nodeCount) {
@@ -26,8 +24,6 @@ public class ScheduleSummaryResponse {
                 .region(schedule.getRegion())
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
-                .peopleCount(schedule.getPeopleCount())
-                .budget(schedule.getBudget())
                 .nodeCount(nodeCount)
                 .build();
     }

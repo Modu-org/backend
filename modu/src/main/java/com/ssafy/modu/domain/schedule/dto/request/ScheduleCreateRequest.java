@@ -13,6 +13,4 @@ public class ScheduleCreateRequest {
     private String region;
     private LocalDate startDate;
     private LocalDate endDate;
-    private Integer peopleCount;
-    private Integer budget;
 }

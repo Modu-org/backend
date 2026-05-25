@@ -15,8 +15,6 @@ public class ScheduleResponse {
     private String region;
     private LocalDate startDate;
     private LocalDate endDate;
-    private Integer peopleCount;
-    private Integer budget;
 
     public static ScheduleResponse from(Schedule schedule) {
         return ScheduleResponse.builder()
@@ -25,8 +23,6 @@ public class ScheduleResponse {
                 .region(schedule.getRegion())
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
-                .peopleCount(schedule.getPeopleCount())
-                .budget(schedule.getBudget())
                 .build();
     }
 }

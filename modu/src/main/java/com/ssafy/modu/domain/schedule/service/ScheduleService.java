@@ -30,7 +30,7 @@ public class ScheduleService {
 
     @Transactional
     public ScheduleResponse createSchedule(Long userId, ScheduleCreateRequest request) {
-        validateScheduleRequest(request.getStartDate(), request.getEndDate(), request.getPeopleCount(), request.getBudget());
+        validateScheduleRequest(request.getStartDate(), request.getEndDate());
 
         User user = userRepository.findByIdAndIsDeletedFalse(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
@@ -40,9 +40,7 @@ public class ScheduleService {
                 request.getTitle(),
                 request.getRegion(),
                 request.getStartDate(),
-                request.getEndDate(),
-                request.getPeopleCount(),
-                request.getBudget()
+                request.getEndDate()
         );
 
         return ScheduleResponse.from(scheduleRepository.save(schedule));
@@ -66,16 +64,14 @@ public class ScheduleService {
     // 스케줄 수정
     @Transactional
     public ScheduleResponse updateSchedule(Long userId, Long scheduleId, ScheduleUpdateRequest request) {
-        validateScheduleRequest(request.getStartDate(), request.getEndDate(), request.getPeopleCount(), request.getBudget());
+        validateScheduleRequest(request.getStartDate(), request.getEndDate());
 
         Schedule schedule = getSchedule(userId, scheduleId);
         schedule.update(
                 request.getTitle(),
                 request.getRegion(),
                 request.getStartDate(),
-                request.getEndDate(),
-                request.getPeopleCount(),
-                request.getBudget()
+                request.getEndDate()
         );
 
         return ScheduleResponse.from(schedule);
@@ -107,18 +103,10 @@ public class ScheduleService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
     }
 
-    private void validateScheduleRequest(LocalDate startDate, LocalDate endDate, Integer peopleCount, Integer budget) {
+    private void validateScheduleRequest(LocalDate startDate, LocalDate endDate) {
         // 여행일자 정합성 (둘 중에 하나가 null이거나, 시작일보다 종료일이 앞서거나)
         if (startDate == null || endDate == null || startDate.isAfter(endDate)) {
             throw new BusinessException(ErrorCode.INVALID_TRIP_DATE);
-        }
-        // 사람 수가 0명이하일 때
-        if (peopleCount == null || peopleCount < 1) {
-            throw new BusinessException(ErrorCode.INVALID_PEOPLE_COUNT);
-        }
-        // 예산이 없거나 0미만일 때
-        if (budget == null || budget < 0) {
-            throw new BusinessException(ErrorCode.INVALID_BUDGET);
         }
     }
 }
