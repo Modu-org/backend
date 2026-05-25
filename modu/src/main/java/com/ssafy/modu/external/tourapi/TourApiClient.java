@@ -43,8 +43,13 @@ public class TourApiClient {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
+
         } catch (WebClientResponseException e) {
-            // Tour API 트래픽/쿼터 초과: 반복 작업을 즉시 중단한다.
+            log.error("Tour API HTTP error. status={}, body={}",
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString()
+            );
+
             if (e.getStatusCode().value() == 429) {
                 throw new BusinessException(ErrorCode.TOUR_API_TRAFFIC_EXCEEDED);
             }
@@ -58,6 +63,7 @@ public class TourApiClient {
         String trimmed = body.trim();
 
         if (!trimmed.startsWith("{")) {
+            log.error("Tour API returned non-json response. path={}, body={}", path, trimmed);
             throw new IllegalStateException("Tour API가 JSON이 아닌 응답을 반환했습니다. path=" + path);
         }
 

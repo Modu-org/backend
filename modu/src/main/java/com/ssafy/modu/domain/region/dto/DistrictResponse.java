@@ -1,4 +1,4 @@
-package com.ssafy.modu.external.tourapi.dto;
+package com.ssafy.modu.domain.region.dto;
 
 public record DistrictResponse(
         String districtCode,
