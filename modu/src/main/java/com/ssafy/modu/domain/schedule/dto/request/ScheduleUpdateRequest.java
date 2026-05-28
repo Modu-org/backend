@@ -10,7 +10,6 @@ import java.time.LocalDate;
 public class ScheduleUpdateRequest {
 
     private String title;
-    private String region;
     private LocalDate startDate;
     private LocalDate endDate;
 }

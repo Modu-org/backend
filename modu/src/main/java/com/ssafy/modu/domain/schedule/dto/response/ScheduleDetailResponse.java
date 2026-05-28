@@ -25,7 +25,6 @@ public class ScheduleDetailResponse {
 
     private Long scheduleId;
     private String title;
-    private String region;
     private LocalDate startDate;
     private LocalDate endDate;
     private List<ScheduleDayResponse> days;
@@ -62,7 +61,6 @@ public class ScheduleDetailResponse {
         return ScheduleDetailResponse.builder()
                 .scheduleId(schedule.getId())
                 .title(schedule.getTitle())
-                .region(schedule.getRegion())
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
                 .days(days)
