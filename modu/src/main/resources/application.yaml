@@ -72,6 +72,10 @@ tour-api:
   kor-service-base-url: https://apis.data.go.kr/B551011/KorService2
   kor-with-service-base-url: https://apis.data.go.kr/B551011/KorWithService2
 
+kakao:
+  mobility:
+    rest-api-key: ${KAKAO_REST_API_KEY}
+    base-url: https://apis-navi.kakaomobility.com
 
 tour-initial-load:
   enabled: false
