@@ -12,7 +12,6 @@ public class ScheduleResponse {
 
     private Long scheduleId;
     private String title;
-    private String region;
     private LocalDate startDate;
     private LocalDate endDate;
 
@@ -20,7 +19,6 @@ public class ScheduleResponse {
         return ScheduleResponse.builder()
                 .scheduleId(schedule.getId())
                 .title(schedule.getTitle())
-                .region(schedule.getRegion())
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
                 .build();

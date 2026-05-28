@@ -38,7 +38,6 @@ public class ScheduleService {
         Schedule schedule = Schedule.create(
                 user,
                 request.getTitle(),
-                request.getRegion(),
                 request.getStartDate(),
                 request.getEndDate()
         );
@@ -69,7 +68,6 @@ public class ScheduleService {
         Schedule schedule = getSchedule(userId, scheduleId);
         schedule.update(
                 request.getTitle(),
-                request.getRegion(),
                 request.getStartDate(),
                 request.getEndDate()
         );

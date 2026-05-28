@@ -30,9 +30,6 @@ public class Schedule {
     @Column(nullable = false, length = 200)
     private String title;
 
-    @Column(nullable = false, length = 100)
-    private String region;
-
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
@@ -49,19 +46,17 @@ public class Schedule {
     @OrderBy("visitDate ASC, visitOrder ASC, id ASC")
     private List<Node> nodes = new ArrayList<>();
 
-    public static Schedule create(User user, String title, String region, LocalDate startDate, LocalDate endDate) {
+    public static Schedule create(User user, String title, LocalDate startDate, LocalDate endDate) {
         Schedule schedule = new Schedule();
         schedule.user = user;
         schedule.title = normalizeTitle(title);
-        schedule.region = region;
         schedule.startDate = startDate;
         schedule.endDate = endDate;
         return schedule;
     }
 
-    public void update(String title, String region, LocalDate startDate, LocalDate endDate) {
+    public void update(String title, LocalDate startDate, LocalDate endDate) {
         this.title = normalizeTitle(title);
-        this.region = region;
         this.startDate = startDate;
         this.endDate = endDate;
     }

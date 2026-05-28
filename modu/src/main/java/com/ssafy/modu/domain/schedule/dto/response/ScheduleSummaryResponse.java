@@ -12,7 +12,6 @@ public class ScheduleSummaryResponse {
 
     private Long scheduleId;
     private String title;
-    private String region;
     private LocalDate startDate;
     private LocalDate endDate;
     private long nodeCount;
@@ -21,7 +20,6 @@ public class ScheduleSummaryResponse {
         return ScheduleSummaryResponse.builder()
                 .scheduleId(schedule.getId())
                 .title(schedule.getTitle())
-                .region(schedule.getRegion())
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
                 .nodeCount(nodeCount)
