@@ -16,6 +16,6 @@ public interface ScheduleRepository extends JpaRepository<Schedule, Long> {
     Optional<Schedule> findByIdAndUser_Id(Long id, Long userId);
 
     // 특정 스케줄 + 스케줄 안의 노드 정보까지 조회
-    @EntityGraph(attributePaths = {"nodes"})
+    @EntityGraph(attributePaths = {"nodes", "nodes.attraction"})
     Optional<Schedule> findWithNodesByIdAndUser_Id(Long id, Long userId);
 }

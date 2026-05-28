@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -44,20 +43,6 @@ public class Node {
     @Column(name = "visit_date")
     private LocalDate visitDate;
 
-    @Column(name = "content_type_id", nullable = false)
-    private Integer contentTypeId;
-
-    @Column(name = "place_name", nullable = false, length = 200)
-    private String placeName;
-
-    @Column(nullable = false)
-    private String address;
-
-    @Column(nullable = false, precision = 10, scale = 7)
-    private BigDecimal latitude;
-
-    @Column(nullable = false, precision = 10, scale = 7)
-    private BigDecimal longitude;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -71,24 +56,12 @@ public class Node {
         node.attraction = attraction;
         node.visitOrder = null;
         node.visitDate = null;
-        node.contentTypeId = parseContentTypeId(attraction.getContentTypeId());
-        node.placeName = attraction.getName();
-        node.address = attraction.getAddress();
-        node.latitude = attraction.getLatitude();
-        node.longitude = attraction.getLongitude();
         return node;
     }
 
     public void updateVisitInfo(Integer visitOrder, LocalDate visitDate) {
         this.visitOrder = visitOrder;
         this.visitDate = visitDate;
-    }
-
-    private static Integer parseContentTypeId(String contentTypeId) {
-        if (contentTypeId == null || contentTypeId.isBlank()) {
-            return 0;
-        }
-        return Integer.parseInt(contentTypeId);
     }
 
     @PrePersist
