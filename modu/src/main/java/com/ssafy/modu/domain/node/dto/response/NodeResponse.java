@@ -1,5 +1,6 @@
 package com.ssafy.modu.domain.node.dto.response;
 
+import com.ssafy.modu.domain.attraction.entity.Attraction;
 import com.ssafy.modu.domain.node.entity.Node;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,17 +24,26 @@ public class NodeResponse {
     private BigDecimal longitude;
 
     public static NodeResponse from(Node node) {
+        Attraction attraction = node.getAttraction();
+
         return NodeResponse.builder()
                 .nodeId(node.getId())
                 .scheduleId(node.getSchedule().getId())
-                .attractionId(node.getAttraction().getId())
+                .attractionId(attraction.getId())
+                .placeName(attraction.getName())
+                .address(attraction.getAddress())
+                .latitude(attraction.getLatitude())
+                .longitude(attraction.getLongitude())
+                .contentTypeId(parseContentTypeId(attraction.getContentTypeId()))
                 .visitOrder(node.getVisitOrder())
                 .visitDate(node.getVisitDate())
-                .contentTypeId(node.getContentTypeId())
-                .placeName(node.getPlaceName())
-                .address(node.getAddress())
-                .latitude(node.getLatitude())
-                .longitude(node.getLongitude())
                 .build();
+    }
+
+    private static Integer parseContentTypeId(String contentTypeId) {
+        if (contentTypeId == null || contentTypeId.isBlank()) {
+            return 0;
+        }
+        return Integer.parseInt(contentTypeId);
     }
 }
