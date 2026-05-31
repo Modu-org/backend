@@ -2,6 +2,7 @@ package com.ssafy.modu.domain.node.service;
 
 import com.ssafy.modu.domain.attraction.entity.Attraction;
 import com.ssafy.modu.domain.attraction.repository.AttractionRepository;
+import com.ssafy.modu.domain.edge.entity.Edge;
 import com.ssafy.modu.domain.edge.service.EdgeService;
 import com.ssafy.modu.domain.node.dto.request.NodeArrangementRequest;
 import com.ssafy.modu.domain.node.dto.request.NodeCreateRequest;
@@ -169,7 +170,8 @@ public class NodeService {
             }
         }
 
-        return ScheduleDetailResponse.from(schedule);
+        List<Edge> edges = edgeService.getEdgesByScheduleId(scheduleId);
+        return ScheduleDetailResponse.from(schedule, edges);
     }
 
     private Schedule getScheduleWithNodes(Long userId, Long scheduleId) {

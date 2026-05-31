@@ -26,6 +26,12 @@ public class EdgeService {
     private final NodeRepository nodeRepository;
     private final KakaoMobilityClient kakaoMobilityClient;
 
+
+    @Transactional(readOnly = true)
+    public List<Edge> getEdgesByScheduleId(Long scheduleId) {
+        return edgeRepository.findByScheduleId(scheduleId);
+    }
+
     /**
      * 특정 노드가 날짜를 가지게 되었을 때,
      * 같은 schedule + 같은 visitDate 안의 다른 노드들과 양방향 Edge를 생성한다.
