@@ -1,5 +1,7 @@
 package com.ssafy.modu.domain.schedule.dto.response;
 
+import com.ssafy.modu.domain.edge.dto.response.EdgeResponse;
+import com.ssafy.modu.domain.edge.entity.Edge;
 import com.ssafy.modu.domain.node.dto.response.NodeResponse;
 import com.ssafy.modu.domain.node.entity.Node;
 import com.ssafy.modu.domain.schedule.entity.Schedule;
@@ -7,18 +9,10 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * 스케줄 기본 정보와 날짜별 노드 목록을 함께 반환한다.
- * days에는 여행 시작일부터 종료일까지의 날짜별 노드 목록이 들어간다.
- * unscheduledNodes에는 아직 방문일자가 지정되지 않은 노드들이 들어간다.
- */
 @Getter
 @Builder
 public class ScheduleDetailResponse {
@@ -31,22 +25,44 @@ public class ScheduleDetailResponse {
     private List<NodeResponse> unscheduledNodes;
 
     public static ScheduleDetailResponse from(Schedule schedule) {
+        return from(schedule, List.of());
+    }
+
+    public static ScheduleDetailResponse from(Schedule schedule, List<Edge> edges) {
         Map<LocalDate, List<Node>> grouped = schedule.getNodes().stream()
                 .filter(node -> node.getVisitDate() != null)
-                .collect(Collectors.groupingBy(Node::getVisitDate, TreeMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(
+                        Node::getVisitDate,
+                        TreeMap::new,
+                        Collectors.toList()
+                ));
+
+        Map<String, Edge> edgeMap = edges.stream()
+                .collect(Collectors.toMap(
+                        edge -> edgeKey(edge.getFromNode().getId(), edge.getToNode().getId()),
+                        Function.identity(),
+                        (existing, replacement) -> existing
+                ));
 
         List<ScheduleDayResponse> days = new ArrayList<>();
+
         LocalDate current = schedule.getStartDate();
         while (!current.isAfter(schedule.getEndDate())) {
-            List<NodeResponse> nodes = grouped.getOrDefault(current, List.of()).stream()
+            List<Node> sortedNodes = grouped.getOrDefault(current, List.of()).stream()
                     .sorted(Comparator.comparing(Node::getVisitOrder, Comparator.nullsLast(Integer::compareTo))
                             .thenComparing(Node::getId))
+                    .toList();
+
+            List<NodeResponse> nodes = sortedNodes.stream()
                     .map(NodeResponse::from)
                     .toList();
+
+            List<EdgeResponse> activeEdges = buildActiveEdges(sortedNodes, edgeMap);
 
             days.add(ScheduleDayResponse.builder()
                     .date(current)
                     .nodes(nodes)
+                    .edges(activeEdges)
                     .build());
 
             current = current.plusDays(1);
@@ -66,5 +82,29 @@ public class ScheduleDetailResponse {
                 .days(days)
                 .unscheduledNodes(unscheduledNodes)
                 .build();
+    }
+
+    private static List<EdgeResponse> buildActiveEdges(
+            List<Node> sortedNodes,
+            Map<String, Edge> edgeMap
+    ) {
+        List<EdgeResponse> responses = new ArrayList<>();
+
+        for (int i = 0; i < sortedNodes.size() - 1; i++) {
+            Node fromNode = sortedNodes.get(i);
+            Node toNode = sortedNodes.get(i + 1);
+
+            Edge edge = edgeMap.get(edgeKey(fromNode.getId(), toNode.getId()));
+
+            if (edge != null) {
+                responses.add(EdgeResponse.from(edge));
+            }
+        }
+
+        return responses;
+    }
+
+    private static String edgeKey(Long fromNodeId, Long toNodeId) {
+        return fromNodeId + "-" + toNodeId;
     }
 }
