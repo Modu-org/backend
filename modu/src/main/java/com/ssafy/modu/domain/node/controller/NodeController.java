@@ -45,7 +45,7 @@ public class NodeController {
     }
 
     // 노드 정보 수정
-    @PutMapping
+    @PutMapping("/placement")
     public ResponseEntity<ApiResponse<ScheduleDetailResponse>> updateNodeArrangement(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long scheduleId,
