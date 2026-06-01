@@ -37,8 +37,10 @@ public enum ErrorCode {
     NODE_ARRANGEMENT_EMPTY(HttpStatus.BAD_REQUEST, 909, "노드 배치 정보가 비어 있습니다."),
     DUPLICATE_VISIT_ORDER(HttpStatus.BAD_REQUEST, 909, "방문 순서가 겹칩니다."),
     INVALID_VISIT_ORDER_SEQUENCE(HttpStatus.BAD_REQUEST, 909, "방문 순서는 1부터 연속되어야 합니다."),
-
     AI_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, 500, "AI API 호출에 실패했습니다."),
+    INVALID_ROUTE_RECOMMENDATION_REQUEST(HttpStatus.BAD_REQUEST, 940, "경로 추천 요청이 올바르지 않습니다."),
+    INVALID_AI_RECOMMENDATION(HttpStatus.INTERNAL_SERVER_ERROR, 941, "AI 경로 추천 결과가 올바르지 않습니다."),
+    AI_ROUTE_RECOMMENDATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, 942, "AI 경로 추천 처리에 실패했습니다."),
     VOICE_SEARCH_PARSE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, 500, "음성 검색 결과 파싱에 실패했습니다."),
     INVALID_VOICE_SEARCH_TYPE(HttpStatus.BAD_REQUEST, 900, "지원하지 않는 음성 검색 유형입니다."),
     KAKAO_DIRECTIONS_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR,500 , "KAKAO MoBILITY API 호출에 실패했습니다."),
