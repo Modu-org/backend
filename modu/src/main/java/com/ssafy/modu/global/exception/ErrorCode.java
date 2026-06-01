@@ -29,6 +29,8 @@ public enum ErrorCode {
     INVALID_TRIP_DATE(HttpStatus.BAD_REQUEST, 904, "여행 시작일은 종료일보다 늦을 수 없습니다."),
     INVALID_BUDGET(HttpStatus.BAD_REQUEST, 904, "예산은 0원 이상이어야 합니다."),
     INVALID_PEOPLE_COUNT(HttpStatus.BAD_REQUEST, 904, "인원 수는 1명 이상이어야합니다."),
+    VISIT_ORDER_REQUIRED(HttpStatus.BAD_REQUEST,904,"방문 순서가 정해져있어야합니다."),
+    INVALID_UNASSIGNED_NODE_ORDER(HttpStatus.BAD_REQUEST,904,"방문 순서가 정해져있을 수 없습니다."),
     INVALID_NODE_VISIT_DATE(HttpStatus.BAD_REQUEST, 904, "노드 방문일자는 여행 기간 안에 있어야 합니다."),
     INVALID_NODE_VISIT_ORDER(HttpStatus.BAD_REQUEST, 904, "노드 방문 순서는 1 이상이어야 합니다."),
     DUPLICATE_NODE_IN_REQUEST(HttpStatus.BAD_REQUEST, 904, "중복된 노드가 요청에 포함되어 있습니다."),

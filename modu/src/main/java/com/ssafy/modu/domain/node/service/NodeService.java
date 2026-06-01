@@ -101,10 +101,17 @@ public class NodeService {
 
         for (NodeArrangementRequest.DayArrangement day : request.getDays()) {
             validateVisitDate(schedule, day.getDate());
-            // 방문 순서가 중복되거나 어긋
-            validateDuplicateVisitOrder(day.getNodes());
 
-            // 특정 일자의 노드 정보들을 가져옴
+            if (day.getNodes() == null) {
+                continue;
+            }
+
+            validateArrangementRule(day);
+
+            if (day.getDate() != null) {
+                validateDuplicateVisitOrder(day.getNodes());
+            }
+
             for (NodeArrangementRequest.NodeArrangement item : day.getNodes()) {
                 if (item.getNodeId() == null) {
                     throw new BusinessException(ErrorCode.NODE_NOT_FOUND);
@@ -143,7 +150,7 @@ public class NodeService {
     // 노드 방문 일자가 노드가 포함된 스케줄의 여행 일자 안에 있는지 확인
     private void validateVisitDate(Schedule schedule, LocalDate visitDate) {
         if (visitDate == null) {
-            throw new BusinessException(ErrorCode.INVALID_NODE_VISIT_DATE);
+            return; // 미배정 그룹 허용
         }
 
         if (visitDate.isBefore(schedule.getStartDate()) || visitDate.isAfter(schedule.getEndDate())) {
@@ -166,6 +173,18 @@ public class NodeService {
         for (NodeArrangementRequest.NodeArrangement node : nodes) {
             if (!visitOrders.add(node.getVisitOrder())) {
                 throw new BusinessException(ErrorCode.DUPLICATE_VISIT_ORDER);
+            }
+        }
+    }
+
+    private void validateArrangementRule(NodeArrangementRequest.DayArrangement day) {
+        for (NodeArrangementRequest.NodeArrangement nodeRequest : day.getNodes()) {
+            if (day.getDate() != null && nodeRequest.getVisitOrder() == null) {
+                throw new BusinessException(ErrorCode.VISIT_ORDER_REQUIRED);
+            }
+
+            if (day.getDate() == null && nodeRequest.getVisitOrder() != null) {
+                throw new BusinessException(ErrorCode.INVALID_UNASSIGNED_NODE_ORDER);
             }
         }
     }
