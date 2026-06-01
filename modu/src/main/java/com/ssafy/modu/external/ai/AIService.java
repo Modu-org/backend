@@ -1,7 +1,7 @@
 package com.ssafy.modu.external.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafy.modu.domain.routerecommend.dto.request.RouteRecommendAiRequest;
+import com.ssafy.modu.external.ai.dto.request.RouteRecommendAiRequest;
 import com.ssafy.modu.external.ai.dto.response.RouteRecommendAiResponse;
 import com.ssafy.modu.domain.voicesearch.dto.response.VoiceSearchParsedResult;
 import com.ssafy.modu.external.ai.client.GmsGeminiClient;
