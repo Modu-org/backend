@@ -1,4 +1,4 @@
-package com.ssafy.modu.domain.routerecommend.dto.request;
+package com.ssafy.modu.external.ai.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
