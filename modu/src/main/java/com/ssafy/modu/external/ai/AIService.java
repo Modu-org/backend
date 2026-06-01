@@ -1,7 +1,11 @@
 package com.ssafy.modu.external.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssafy.modu.domain.routerecommend.dto.request.RouteRecommendAiRequest;
+import com.ssafy.modu.external.ai.dto.response.RouteRecommendAiResponse;
 import com.ssafy.modu.domain.voicesearch.dto.response.VoiceSearchParsedResult;
+import com.ssafy.modu.external.ai.client.GmsGeminiClient;
+import com.ssafy.modu.external.ai.client.GmsOpenAIClient;
 import com.ssafy.modu.global.exception.BusinessException;
 import com.ssafy.modu.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -13,17 +17,17 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AIService {
 
-    private final AIClient aiClient;
+    private final GmsGeminiClient gmsGeminiClient;
+    private final GmsOpenAIClient gmsOpenAIClient;
     private final ObjectMapper objectMapper;
 
     /**
      * 음성 입력 텍스트를 구조화된 검색 파라미터로 변환한다.
      *
-     * type에 따라 다른 프롬프트 템플릿을 사용한다.
-     * - type 1: 관광지 검색 파라미터
-     * - type 2, 3: 향후 확장 예정
-     *
-     * AI API를 호출하고, 응답 JSON을 VoiceSearchParsedResult로 변환한다.
+     * 기존 흐름 유지:
+     * 1. type에 따라 프롬프트 생성
+     * 2. GMS Gemini API 호출
+     * 3. 응답 JSON을 VoiceSearchParsedResult로 변환
      */
     public VoiceSearchParsedResult parseVoiceInput(String text, int type) {
         /*
@@ -33,18 +37,58 @@ public class AIService {
         String prompt = buildPrompt(text, type);
 
         /*
-            AI API 호출.
+            GMS Gemini API 호출.
             프롬프트를 전송하고 응답 텍스트(JSON 문자열)를 받는다.
          */
-        String responseText = aiClient.generateContent(prompt);
+        String responseText = gmsGeminiClient.generateContent(prompt);
 
-        log.info("AI 응답: {}", responseText);
+        log.info("Gemini 음성 검색 응답: {}", responseText);
 
         /*
             응답 JSON을 VoiceSearchParsedResult로 변환한다.
             파싱 실패 시 VOICE_SEARCH_PARSE_FAILED 예외를 발생시킨다.
          */
         return parseResponse(responseText);
+    }
+
+    /**
+     * 여행 경로 추천.
+     *
+     * 경로 추천은 GMS OpenAI API를 사용한다.
+     */
+    public RouteRecommendAiResponse recommendRoute(RouteRecommendAiRequest request) {
+        try {
+            String inputJson = objectMapper.writeValueAsString(request);
+
+            String developerPrompt = """
+                    너는 여행 일정 경로 추천 엔진이다.
+                    반드시 사용자가 제공한 nodes와 edges만 사용한다.
+                    입력에 없는 nodeId, attractionId, edgeId를 절대 생성하지 않는다.
+                    출력은 반드시 JSON만 반환한다.
+                    코드 블록(```)은 절대 사용하지 않는다.
+                    """;
+
+            String userPrompt = String.format(
+                    AIPromptTemplate.ROUTE_RECOMMENDATION,
+                    inputJson
+            );
+
+            String responseText = gmsOpenAIClient.generateContent(
+                    developerPrompt,
+                    userPrompt
+            );
+
+
+            return objectMapper.readValue(
+                    responseText.trim(),
+                    RouteRecommendAiResponse.class
+            );
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("AI 경로 추천 응답 파싱 실패", e);
+            throw new BusinessException(ErrorCode.AI_API_ERROR);
+        }
     }
 
     /**
