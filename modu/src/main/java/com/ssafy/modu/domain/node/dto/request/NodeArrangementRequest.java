@@ -22,10 +22,8 @@ public class NodeArrangementRequest {
     @NoArgsConstructor
     public static class DayArrangement {
 
-        @NotNull(message = "방문일자는 필수입니다.")
-        private LocalDate date;
+        private LocalDate date; // null이면 미지정 그룹
 
-        @NotEmpty(message = "노드 목록은 비어 있을 수 없습니다.")
         @Valid
         private List<NodeArrangement> nodes;
     }
@@ -37,7 +35,6 @@ public class NodeArrangementRequest {
         @NotNull(message = "노드 ID는 필수입니다.")
         private Long nodeId;
 
-        @NotNull(message = "방문 순서는 필수입니다.")
         @Min(value = 1, message = "방문 순서는 1 이상이어야 합니다.")
         private Integer visitOrder;
     }

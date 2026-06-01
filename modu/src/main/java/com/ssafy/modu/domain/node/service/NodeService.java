@@ -123,7 +123,16 @@ public class NodeService {
 
         for (NodeArrangementRequest.DayArrangement day : request.getDays()) {
             validateVisitDate(schedule, day.getDate());
-            validateDuplicateVisitOrder(day.getNodes());
+
+            if (day.getNodes() == null) {
+                continue;
+            }
+
+            validateArrangementRule(day);
+
+            if (day.getDate() != null) {
+                validateDuplicateVisitOrder(day.getNodes());
+            }
 
             for (NodeArrangementRequest.NodeArrangement item : day.getNodes()) {
                 if (item.getNodeId() == null) {
@@ -186,7 +195,7 @@ public class NodeService {
 
     private void validateVisitDate(Schedule schedule, LocalDate visitDate) {
         if (visitDate == null) {
-            throw new BusinessException(ErrorCode.INVALID_NODE_VISIT_DATE);
+            return; // 미배정 그룹 허용
         }
 
         if (visitDate.isBefore(schedule.getStartDate()) || visitDate.isAfter(schedule.getEndDate())) {
@@ -216,4 +225,17 @@ public class NodeService {
             }
         }
     }
+
+    private void validateArrangementRule(NodeArrangementRequest.DayArrangement day) {
+        for (NodeArrangementRequest.NodeArrangement nodeRequest : day.getNodes()) {
+            if (day.getDate() != null && nodeRequest.getVisitOrder() == null) {
+                throw new BusinessException(ErrorCode.VISIT_ORDER_REQUIRED);
+            }
+
+            if (day.getDate() == null && nodeRequest.getVisitOrder() != null) {
+                throw new BusinessException(ErrorCode.INVALID_UNASSIGNED_NODE_ORDER);
+            }
+        }
+    }
+
 }
