@@ -105,7 +105,13 @@ app:
   oauth2:
     redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/oauth/success}
 
-gemini:
-  api-key: ${GEMINI_API_KEY}
-  model: gemini-2.5-flash
-  base-url: https://generativelanguage.googleapis.com/v1beta
+gms:
+  openai:
+    api-key: ${GMS_KEY}
+    model: gpt-4o-mini
+    base-url: https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions
+
+  gemini:
+    api-key: ${GMS_KEY}
+    model: gemini-2.5-flash
+    base-url: https://gms.ssafy.io/gmsapi/generativelanguage.googleapis.com/v1beta
