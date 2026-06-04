@@ -45,7 +45,11 @@ public enum ErrorCode {
     INVALID_VOICE_SEARCH_TYPE(HttpStatus.BAD_REQUEST, 900, "지원하지 않는 음성 검색 유형입니다."),
     KAKAO_DIRECTIONS_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR,500 , "KAKAO MoBILITY API 호출에 실패했습니다."),
     INVALID_EDGE_REQUEST(HttpStatus.BAD_REQUEST, 904,"유효하지 않은 간선 요청입니다."),
-    INVALID_ATTRACTION_LOCATION(HttpStatus.BAD_REQUEST, 904,"관광지 좌표 정보가 올바르지 않습니다.");
+    INVALID_ATTRACTION_LOCATION(HttpStatus.BAD_REQUEST, 904,"관광지 좌표 정보가 올바르지 않습니다."),
+    INVALID_REVIEW_REQUEST(HttpStatus.BAD_REQUEST, 904, "리뷰 입력값이 올바르지 않습니다."),
+    REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, 920, "이미 해당 관광지에 리뷰를 작성했습니다."),
+    REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "존재하지 않는 리뷰입니다."),
+    REVIEW_ACCESS_DENIED(HttpStatus.FORBIDDEN, 901, "리뷰에 접근할 권한이 없습니다.");
 
     private final HttpStatus httpStatus;
     private final int status;
