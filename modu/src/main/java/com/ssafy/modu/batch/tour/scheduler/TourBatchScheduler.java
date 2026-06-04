@@ -2,6 +2,7 @@ package com.ssafy.modu.batch.tour.scheduler;
 
 import com.ssafy.modu.batch.tour.config.TourBatchProperties;
 import com.ssafy.modu.batch.tour.dto.TourBatchResult;
+import com.ssafy.modu.batch.tour.dto.TourBatchSyncResult;
 import com.ssafy.modu.batch.tour.service.TourBatchFacade;
 import com.ssafy.modu.global.exception.BusinessException;
 import com.ssafy.modu.global.exception.ErrorCode;
@@ -40,8 +41,8 @@ public class TourBatchScheduler {
                 modifiedTime, props.getMaxPages(), props.getDetailBatchSize());
 
         try {
-//            TourBatchSyncResult sync = tourBatchFacade.runModifiedSync(modifiedTime, props.getMaxPages());
-//            log.info("Tour list sync finished. general={}, accessible={}", sync.general(), sync.accessible());
+            TourBatchSyncResult sync = tourBatchFacade.runModifiedSync(modifiedTime, props.getMaxPages());
+            log.info("Tour list sync finished. general={}, accessible={}", sync.general(), sync.accessible());
 
             TourBatchResult accessibilityDetail =
                     tourBatchFacade.runAccessibleDetailImport(props.getDetailBatchSize());

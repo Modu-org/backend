@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.ssafy.modu.batch.tour.dto.AccessibilityImportOutcome;
 import com.ssafy.modu.batch.tour.dto.TourBatchResult;
 import com.ssafy.modu.batch.tour.dto.TourImportResult;
+import com.ssafy.modu.batch.tour.dto.TourRemovedCheckResult;
 import com.ssafy.modu.domain.attraction.entity.Attraction;
 import com.ssafy.modu.domain.attraction.entity.enums.TourDetailLoadStatus;
 import com.ssafy.modu.domain.attraction.repository.AttractionRepository;
@@ -11,12 +12,17 @@ import com.ssafy.modu.external.tourapi.TourApiService;
 import com.ssafy.modu.external.tourapi.util.TourApiJsonExtractor;
 import com.ssafy.modu.global.exception.BusinessException;
 import com.ssafy.modu.global.exception.ErrorCode;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -269,9 +275,12 @@ public class TourDataImportService {
     public Attraction upsertAttraction(JsonNode item) {
         String contentId = extractor.text(item, "contentid");
         String contentTypeId = extractor.text(item, "contenttypeid");
+        LocalDateTime newModifiedTime = extractor.dateTime(item, "modifiedtime");
 
         Attraction attraction = attractionRepository.findByContentId(contentId)
                 .orElseGet(() -> Attraction.create(contentId, contentTypeId));
+
+        boolean modified = attraction.isApiModifiedTimeChanged(newModifiedTime);
 
         attraction.updateFromApi(
                 extractor.text(item, "title"),
@@ -291,11 +300,15 @@ public class TourDataImportService {
                 extractor.text(item, "lclsSystm2"),
                 extractor.text(item, "lclsSystm3"),
                 extractor.dateTime(item, "createdtime"),
-                extractor.dateTime(item, "modifiedtime"),
+                newModifiedTime,
                 null,
                 extractor.boolByOneZero(item, "showflag"),
                 extractor.text(item, "cpyrhtDivCd")
         );
+
+        if (modified) {
+            attraction.resetDetailStatusForModifiedApiData();
+        }
 
         return attractionRepository.save(attraction);
     }
@@ -318,6 +331,43 @@ public class TourDataImportService {
 
         return true;
     }
+    @Transactional
+    public TourRemovedCheckResult checkRemovedAccessibleAttractions() {
+        Set<String> currentApiContentIds = fetchCurrentAccessibleContentIds();
+
+        int page = 0;
+        int size = 500;
+
+        int checkedCount = 0;
+        int removedCount = 0;
+
+        Page<Attraction> result;
+
+        do {
+            result = attractionRepository.findByAccessibleCandidateTrue(
+                    PageRequest.of(page, size)
+            );
+
+            for (Attraction attraction : result.getContent()) {
+                checkedCount++;
+
+                if (!currentApiContentIds.contains(attraction.getContentId())) {
+                    attraction.markRemovedFromApi();
+                    removedCount++;
+                }
+            }
+
+            page++;
+        } while (result.hasNext());
+
+        return new TourRemovedCheckResult(
+                currentApiContentIds.size(),
+                checkedCount,
+                removedCount
+        );
+    }
+
+
 
     private boolean hasRequiredAttractionFields(JsonNode item) {
         return extractor.text(item, "contentid") != null
@@ -398,5 +448,46 @@ public class TourDataImportService {
         }
 
         return Math.min(maxPages, DEFAULT_MAX_PAGES_PER_RUN);
+    }
+
+    private Set<String> fetchCurrentAccessibleContentIds() {
+        Set<String> contentIds = new HashSet<>();
+
+        int pageNo = 1;
+        int numOfRows = 100;
+
+        while (true) {
+            JsonNode root = tourApiService.getAccessibleSync(
+                    null,
+                    pageNo,
+                    numOfRows,
+                    "1"
+            );
+
+            validateResult(root);
+
+            int totalCount = extractor.totalCount(root);
+            List<JsonNode> items = extractor.items(root);
+
+            if (items.isEmpty()) {
+                break;
+            }
+
+            for (JsonNode item : items) {
+                String contentId = extractor.text(item, "contentid");
+
+                if (contentId != null && !contentId.isBlank()) {
+                    contentIds.add(contentId);
+                }
+            }
+
+            if (pageNo * numOfRows >= totalCount) {
+                break;
+            }
+
+            pageNo++;
+        }
+
+        return contentIds;
     }
 }

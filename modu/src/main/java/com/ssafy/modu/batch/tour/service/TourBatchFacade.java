@@ -3,6 +3,7 @@ package com.ssafy.modu.batch.tour.service;
 import com.ssafy.modu.batch.tour.dto.TourBatchResult;
 import com.ssafy.modu.batch.tour.dto.TourBatchSyncResult;
 import com.ssafy.modu.batch.tour.dto.TourImportResult;
+import com.ssafy.modu.batch.tour.dto.TourRemovedCheckResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -61,5 +62,9 @@ public class TourBatchFacade {
         TourImportResult accessible = runAccessibleListImport(modifiedTime, maxPages);
 
         return new TourBatchSyncResult(general, accessible);
+    }
+
+    public TourRemovedCheckResult runRemovedAccessibleCheck() {
+        return tourDataImportService.checkRemovedAccessibleAttractions();
     }
 }
