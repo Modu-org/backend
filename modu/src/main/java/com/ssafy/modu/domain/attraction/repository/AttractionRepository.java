@@ -2,6 +2,7 @@ package com.ssafy.modu.domain.attraction.repository;
 
 import com.ssafy.modu.domain.attraction.entity.Attraction;
 import com.ssafy.modu.domain.attraction.entity.enums.TourDetailLoadStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,7 @@ public interface AttractionRepository extends JpaRepository<Attraction, Long>, J
 
     @EntityGraph(attributePaths = "accessibilityInfos")
     Optional<Attraction> findWithAccessibilityInfosByIdAndShowFlagTrue(Long id);
+    Page<Attraction> findByAccessibleCandidateTrue(Pageable pageable);
     /**
      * 무장애 후보(목록에 등장) 중, 아직 detailWithTour2를 호출하지 않은 대상 조회.
      * NOT_STARTED만 대상으로 잡아야 NO_DATA/SUCCESS가 반복 호출되지 않는다.

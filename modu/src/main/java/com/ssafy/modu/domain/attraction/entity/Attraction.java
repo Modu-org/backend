@@ -102,6 +102,9 @@ public class Attraction {
     @Column(name = "copyright_type", length = 20)
     private String copyrightType;
 
+    @Column(name = "api_removed", nullable = false)
+    private boolean apiRemoved = false;
+
     /**
      * detailCommon2(일반 관광 API 공통 상세) 호출 결과 상태.
      * SUCCESS: item 존재 및 저장 완료, NO_DATA: item 없음(더 이상 재호출하지 않음).
@@ -252,6 +255,8 @@ public class Attraction {
         this.lastSyncedAt = LocalDateTime.now();
     }
 
+
+
     @PrePersist
     void prePersist() {
         LocalDateTime now = LocalDateTime.now();
@@ -274,5 +279,30 @@ public class Attraction {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    public boolean isApiModifiedTimeChanged(LocalDateTime newModifiedTime) {
+        return newModifiedTime != null
+                && this.apiModifiedTime != null
+                && newModifiedTime.isAfter(this.apiModifiedTime);
+    }
+
+    public void resetDetailStatusForModifiedApiData() {
+        this.commonDetailStatus = TourDetailLoadStatus.NOT_STARTED;
+        this.accessibilityStatus = TourDetailLoadStatus.NOT_STARTED;
+        this.commonDetailLoadedAt = null;
+        this.accessibilityLoadedAt = null;
+    }
+    public void markRemovedFromApi() {
+        this.apiRemoved = true;
+        this.accessibleCandidate = false;
+    }
+
+    public void markRestoredFromApi() {
+        this.apiRemoved = false;
+    }
+
+    public boolean isAvailableForNewSchedule() {
+        return !this.apiRemoved && Boolean.TRUE.equals(this.showFlag);
     }
 }
