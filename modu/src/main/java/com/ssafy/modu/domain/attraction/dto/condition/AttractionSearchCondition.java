@@ -12,6 +12,7 @@ public class AttractionSearchCondition {
 
     private String regionCode;
     private String sigunguCode;
+    private List<String> sigunguCodes;
     private String keyword;
 
     private List<String> contentTypeIds;

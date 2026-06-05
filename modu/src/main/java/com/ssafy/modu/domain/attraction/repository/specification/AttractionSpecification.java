@@ -76,6 +76,27 @@ public class AttractionSpecification {
     /**
      * 지역 코드 조건 추가
      */
+
+
+    /**
+     * 시군구 코드 조건 추가
+     */
+    private static void addSigunguCondition(
+            List<Predicate> predicates,
+            Root<Attraction> root,
+            CriteriaBuilder cb,
+            AttractionSearchCondition condition
+    ) {
+        if (condition.getSigunguCodes() == null || condition.getSigunguCodes().isEmpty()) {
+            return;
+        }
+
+        predicates.add(root.get("lDongSignguCd").in(condition.getSigunguCodes()));
+    }
+
+    /**
+     * 키워드 검색 조건 추가
+     */
     private static void addRegionCondition(
             List<Predicate> predicates,
             Root<Attraction> root,
@@ -90,28 +111,6 @@ public class AttractionSpecification {
             predicates.add(cb.equal(root.get("lDongRegnCd"), condition.getRegionCode()));
         }
     }
-
-    /**
-     * 시군구 코드 조건 추가
-     */
-    private static void addSigunguCondition(
-            List<Predicate> predicates,
-            Root<Attraction> root,
-            CriteriaBuilder cb,
-            AttractionSearchCondition condition
-    ) {
-        /*
-            sigunguCode가 null이 아니고 빈 문자열도 아니면
-            시군구 코드 조건을 추가한다.
-         */
-        if (hasText(condition.getSigunguCode())) {
-            predicates.add(cb.equal(root.get("lDongSignguCd"), condition.getSigunguCode()));
-        }
-    }
-
-    /**
-     * 키워드 검색 조건 추가
-     */
     private static void addKeywordCondition(
             List<Predicate> predicates,
             Root<Attraction> root,
