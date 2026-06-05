@@ -16,6 +16,7 @@ public interface AccessibilityInfoRepository extends JpaRepository<Accessibility
             String sourceField
     );
 
+    List<AccessibilityInfo> findByAttraction_IdIn(List<Long> attractionIds);
     List<AccessibilityInfo> findByAttraction_Id(Long attractionId);
 
     List<AccessibilityInfo> findByTypeAndStatus(AccessibilityType type, AccessibilityStatus status);
