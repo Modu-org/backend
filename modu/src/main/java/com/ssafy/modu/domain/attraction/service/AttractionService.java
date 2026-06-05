@@ -1,8 +1,11 @@
 package com.ssafy.modu.domain.attraction.service;
 
+import com.ssafy.modu.domain.accessibility.entity.AccessibilityInfo;
 import com.ssafy.modu.domain.accessibility.entity.enums.AccessibilityCategory;
+import com.ssafy.modu.domain.accessibility.repository.AccessibilityInfoRepository;
 import com.ssafy.modu.domain.attraction.dto.condition.AttractionSearchCondition;
 import com.ssafy.modu.domain.attraction.dto.request.AttractionSearchRequest;
+import com.ssafy.modu.domain.attraction.dto.response.AttractionAccessibilityResponse;
 import com.ssafy.modu.domain.attraction.dto.response.AttractionDetailResponse;
 import com.ssafy.modu.domain.attraction.dto.response.AttractionListResponse;
 import com.ssafy.modu.domain.attraction.entity.Attraction;
@@ -21,7 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.ssafy.modu.global.exception.ErrorCode.USER_NOT_FOUND;
 
@@ -45,6 +51,7 @@ public class AttractionService {
 
     private final AttractionRepository attractionRepository;
     private final UserDetailRepository userDetailRepository;
+    private final AccessibilityInfoRepository accessibilityInfoRepository;
 
     /**
      * 관광지 목록 조회 메서드
@@ -149,7 +156,33 @@ public class AttractionService {
             Attraction 엔티티 전체를 프론트에 주는 것이 아니라
             목록 화면에 필요한 필드만 담은 DTO로 변환해서 반환한다.
          */
-        return attractions.map(AttractionListResponse::from);
+        List<Long> attractionIds = attractions.getContent().stream()
+                .map(Attraction::getId)
+                .toList();
+
+        Map<Long, List<AttractionAccessibilityResponse>> accessibilityMap =
+                accessibilityInfoRepository.findByAttraction_IdIn(attractionIds).stream()
+                        .collect(Collectors.groupingBy(
+                                info -> info.getAttraction().getId(),
+                                Collectors.collectingAndThen(
+                                        Collectors.toList(),
+                                        infos -> infos.stream()
+                                                .sorted(
+                                                        Comparator
+                                                                .comparing((AccessibilityInfo info) -> info.getCategory().name())
+                                                                .thenComparing(info -> info.getType().name())
+                                                )
+                                                .map(AttractionAccessibilityResponse::from)
+                                                .toList()
+                                )
+                        ));
+
+        return attractions.map(attraction ->
+                AttractionListResponse.from(
+                        attraction,
+                        accessibilityMap.getOrDefault(attraction.getId(), List.of())
+                )
+        );
     }
 
     /**

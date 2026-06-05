@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Getter
 @Builder
@@ -19,7 +20,12 @@ public class AttractionListResponse {
     private BigDecimal latitude;
     private BigDecimal longitude;
 
-    public static AttractionListResponse from(Attraction attraction) {
+    private List<AttractionAccessibilityResponse> accessibility;
+
+    public static AttractionListResponse from(
+            Attraction attraction,
+            List<AttractionAccessibilityResponse> accessibility
+    ) {
         return AttractionListResponse.builder()
                 .attractionId(attraction.getId())
                 .contentId(attraction.getContentId())
@@ -29,6 +35,11 @@ public class AttractionListResponse {
                 .contentTypeId(attraction.getContentTypeId())
                 .latitude(attraction.getLatitude())
                 .longitude(attraction.getLongitude())
+                .accessibility(accessibility)
                 .build();
+    }
+
+    public static AttractionListResponse from(Attraction attraction) {
+        return from(attraction, List.of());
     }
 }
