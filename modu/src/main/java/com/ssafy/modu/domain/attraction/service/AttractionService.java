@@ -89,6 +89,11 @@ public class AttractionService {
          */
         List<AccessibilityCategory> categories = resolveCategories(userDetail, request);
 
+        List<String> sigunguCodes = resolveSigunguCodes(
+                request.getRegionCode(),
+                request.getSigunguCode()
+        );
+
         /*
             검색 조건 객체 생성.
 
@@ -101,6 +106,7 @@ public class AttractionService {
                 .regionCode(request.getRegionCode())              // 지역 코드
                 .sigunguCode(request.getSigunguCode())            // 시군구 코드
                 .keyword(request.getKeyword())                    // 검색 키워드
+                .sigunguCodes(sigunguCodes)
                 .contentTypeIds(request.getContentTypeIds())      // 관광지 타입 목록
                 .categories(categories)                           // 접근성 카테고리 목록
                 .build();
@@ -314,5 +320,18 @@ public class AttractionService {
                 size,
                 Sort.by(Sort.Direction.DESC, "apiModifiedTime")
         );
+    }
+
+    private List<String> resolveSigunguCodes(String regionCode, String sigunguCode) {
+        if (sigunguCode == null || sigunguCode.isBlank()) {
+            return List.of();
+        }
+
+        // 전북특별자치도 전주시 전체 예외 처리
+        if ("52".equals(regionCode) && "110".equals(sigunguCode)) {
+            return List.of("111", "113");
+        }
+
+        return List.of(sigunguCode);
     }
 }
