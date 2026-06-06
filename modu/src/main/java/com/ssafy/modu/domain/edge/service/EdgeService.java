@@ -4,7 +4,8 @@ import com.ssafy.modu.domain.edge.entity.Edge;
 import com.ssafy.modu.domain.edge.repository.EdgeRepository;
 import com.ssafy.modu.domain.node.entity.Node;
 import com.ssafy.modu.domain.node.repository.NodeRepository;
-import com.ssafy.modu.domain.routerecommend.dto.test.EdgeRebuildMetrics;
+import com.ssafy.modu.domain.routecache.entity.AttractionRouteCache;
+import com.ssafy.modu.domain.routecache.repository.AttractionRouteCacheRepository;
 import com.ssafy.modu.domain.schedule.entity.Schedule;
 import com.ssafy.modu.external.kakao.KakaoMobilityClient;
 import com.ssafy.modu.external.kakao.dto.RouteSummary;
@@ -17,17 +18,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
-@Slf4j
 public class EdgeService {
 
     private final EdgeRepository edgeRepository;
     private final NodeRepository nodeRepository;
     private final KakaoMobilityClient kakaoMobilityClient;
+    private final AttractionRouteCacheRepository attractionRouteCacheRepository;
 
 
     @Transactional(readOnly = true)
@@ -39,27 +43,45 @@ public class EdgeService {
      * 특정 노드가 날짜를 가지게 되었을 때,
      * 같은 schedule + 같은 visitDate 안의 다른 노드들과 양방향 Edge를 생성한다.
      */
-    public void createEdgesForPlacedNode(Node node) {
+    public EdgeBatchCreateResult createEdgesForPlacedNode(Node node) {
         if (node.getId() == null || node.getVisitDate() == null) {
-            return;
+            return EdgeBatchCreateResult.empty();
         }
 
-        Schedule schedule = node.getSchedule();
-        LocalDate visitDate = node.getVisitDate();
+        return createMissingEdgesForDates(
+                node.getSchedule(),
+                List.of(node.getVisitDate())
+        );
+    }
 
-        // 그 노드와 같은 그룹(스케줄 아이디 같고, 날짜 같은)인 노드들을 가져옴
-        List<Node> sameDateNodes = nodeRepository
-                .findWithAttractionBySchedule_IdAndVisitDate(schedule.getId(), visitDate);
-
-        // 이번에 새로 추가된 노드와 다른 노드들 각각의 엣지를 생성 (이미 있는 엣지면 생성 안함)
-        for (Node otherNode : sameDateNodes) {
-            if (otherNode.getId().equals(node.getId())) {
-                continue;
-            }
-
-            createEdgeIfAbsent(schedule, node, otherNode);
-            createEdgeIfAbsent(schedule, otherNode, node);
+    /**
+     * 자동 배치처럼 여러 노드가 한 번에 날짜를 가지게 된 경우,
+     * 노드마다 Edge를 재생성하지 않고 visitDate 기준으로 묶어서 날짜 단위로 누락 Edge를 생성한다.
+     */
+    public EdgeBatchCreateResult createMissingEdgesForNewlyPlacedNodes(Collection<Node> newlyPlacedNodes) {
+        if (newlyPlacedNodes == null || newlyPlacedNodes.isEmpty()) {
+            return EdgeBatchCreateResult.empty();
         }
+
+        Map<Long, List<Node>> nodesByScheduleId = newlyPlacedNodes.stream()
+                .filter(node -> node.getId() != null)
+                .filter(node -> node.getVisitDate() != null)
+                .collect(Collectors.groupingBy(node -> node.getSchedule().getId()));
+
+        EdgeBatchCreateResult result = EdgeBatchCreateResult.empty();
+
+        for (List<Node> scheduleNodes : nodesByScheduleId.values()) {
+            Schedule schedule = scheduleNodes.get(0).getSchedule();
+
+            List<LocalDate> dates = scheduleNodes.stream()
+                    .map(Node::getVisitDate)
+                    .distinct()
+                    .toList();
+
+            result = result.plus(createMissingEdgesForDates(schedule, dates));
+        }
+
+        return result;
     }
 
     /**
@@ -87,54 +109,212 @@ public class EdgeService {
         edgeRepository.deleteAllByNodeId(nodeId);
     }
 
-
-    public EdgeRebuildMetrics rebuildEdgesForMovedNodeWithMetrics(Node node) {
-        long start = System.nanoTime();
-
-        if (node.getId() == null) {
-            return EdgeRebuildMetrics.skipped(null, null, elapsedMs(start));
+    /**
+     * 날짜 단위로 전체 노드를 조회한 뒤, 기존 Edge와 관광지 경로 캐시를 일괄 조회해서 누락된 Edge만 생성한다.
+     */
+    private EdgeBatchCreateResult createMissingEdgesForDates(
+            Schedule schedule,
+            Collection<LocalDate> visitDates
+    ) {
+        if (schedule == null || schedule.getId() == null || visitDates == null || visitDates.isEmpty()) {
+            return EdgeBatchCreateResult.empty();
         }
 
-        edgeRepository.deleteAllByNodeId(node.getId());
+        EdgeBatchCreateResult result = EdgeBatchCreateResult.empty();
 
-        if (node.getVisitDate() == null) {
-            EdgeRebuildMetrics metrics = EdgeRebuildMetrics.skipped(
-                    node.getId(),
-                    null,
-                    elapsedMs(start)
+        for (LocalDate visitDate : visitDates) {
+            result = result.plus(createMissingEdgesForDate(schedule, visitDate));
+        }
+
+        return result;
+    }
+
+    private EdgeBatchCreateResult createMissingEdgesForDate(
+            Schedule schedule,
+            LocalDate visitDate
+    ) {
+        if (visitDate == null) {
+            return EdgeBatchCreateResult.empty();
+        }
+
+        List<Node> sameDateNodes = nodeRepository
+                .findWithAttractionBySchedule_IdAndVisitDate(schedule.getId(), visitDate);
+
+        if (sameDateNodes.size() < 2) {
+            return EdgeBatchCreateResult.empty();
+        }
+
+        List<Long> nodeIds = sameDateNodes.stream()
+                .map(Node::getId)
+                .toList();
+
+        Set<EdgeKey> existingEdgeKeys = edgeRepository
+                .findByScheduleIdAndFromNodeIdInAndToNodeIdIn(schedule.getId(), nodeIds, nodeIds)
+                .stream()
+                .map(edge -> new EdgeKey(edge.getFromNode().getId(), edge.getToNode().getId()))
+                .collect(Collectors.toSet());
+
+        int edgeCandidateCount = sameDateNodes.size() * (sameDateNodes.size() - 1);
+        int existingEdgeCount = existingEdgeKeys.size();
+
+        List<EdgeCandidate> candidates = buildMissingEdgeCandidates(schedule, sameDateNodes, existingEdgeKeys);
+
+        if (candidates.isEmpty()) {
+            EdgeBatchCreateResult result = new EdgeBatchCreateResult(
+                    edgeCandidateCount,
+                    existingEdgeCount,
+                    0,
+                    0,
+                    0,
+                    0
             );
 
             log.info(
-                    "[EdgeRebuildPerf] nodeId={}, visitDate={}, sameDateNodeCount={}, edgeCandidateCount={}, existingEdgeCount={}, createdEdgeCount={}, kakaoApiCallCount={}, elapsedMs={}",
-                    metrics.nodeId(),
-                    metrics.visitDate(),
-                    metrics.sameDateNodeCount(),
-                    metrics.edgeCandidateCount(),
-                    metrics.existingEdgeCount(),
-                    metrics.createdEdgeCount(),
-                    metrics.kakaoApiCallCount(),
-                    metrics.elapsedMs()
+                    "edge batch create: scheduleId={}, visitDate={}, nodeCount={}, edgeCandidateCount={}, existingEdgeCount={}, createdEdgeCount={}, routeCacheHitCount={}, routeCacheMissCount={}, kakaoApiCallCount={}",
+                    schedule.getId(),
+                    visitDate,
+                    sameDateNodes.size(),
+                    result.edgeCandidateCount(),
+                    result.existingEdgeCount(),
+                    result.createdEdgeCount(),
+                    result.routeCacheHitCount(),
+                    result.routeCacheMissCount(),
+                    result.kakaoApiCallCount()
             );
 
-            return metrics;
+            return result;
         }
 
-        EdgeRebuildMetrics metrics = createEdgesForPlacedNodeWithMetrics(node, start);
+        Map<RouteKey, AttractionRouteCache> routeCacheMap = loadRouteCacheMap(candidates);
 
-        log.info(
-                "[EdgeRebuildPerf] nodeId={}, visitDate={}, sameDateNodeCount={}, edgeCandidateCount={}, existingEdgeCount={}, createdEdgeCount={}, kakaoApiCallCount={}, elapsedMs={}",
-                metrics.nodeId(),
-                metrics.visitDate(),
-                metrics.sameDateNodeCount(),
-                metrics.edgeCandidateCount(),
-                metrics.existingEdgeCount(),
-                metrics.createdEdgeCount(),
-                metrics.kakaoApiCallCount(),
-                metrics.elapsedMs()
+        List<Edge> edgesToSave = new ArrayList<>();
+        int routeCacheHitCount = 0;
+        int routeCacheMissCount = 0;
+        int kakaoApiCallCount = 0;
+
+        for (EdgeCandidate candidate : candidates) {
+            RouteKey routeKey = RouteKey.from(candidate.fromNode(), candidate.toNode());
+            AttractionRouteCache cachedRoute = routeCacheMap.get(routeKey);
+
+            RouteSummary routeSummary;
+
+            if (cachedRoute != null) {
+                routeCacheHitCount++;
+                routeSummary = new RouteSummary(
+                        cachedRoute.getDistanceMeters(),
+                        cachedRoute.getDurationMinutes() * 60
+                );
+            } else {
+                routeCacheMissCount++;
+                routeSummary = getRouteSummaryFromKakao(candidate.fromNode(), candidate.toNode());
+                kakaoApiCallCount++;
+
+                AttractionRouteCache newCache = AttractionRouteCache.create(
+                        candidate.fromNode().getAttraction(),
+                        candidate.toNode().getAttraction(),
+                        AttractionRouteCache.PROVIDER_KAKAO,
+                        routeSummary.getDistanceMeters(),
+                        routeSummary.getDurationMinutes()
+                );
+
+                AttractionRouteCache savedCache = attractionRouteCacheRepository.save(newCache);
+                routeCacheMap.put(routeKey, savedCache);
+            }
+
+            edgesToSave.add(Edge.create(
+                    schedule,
+                    candidate.fromNode(),
+                    candidate.toNode(),
+                    routeSummary.getDurationMinutes(),
+                    routeSummary.getDistanceMeters()
+            ));
+        }
+
+        edgeRepository.saveAll(edgesToSave);
+
+        EdgeBatchCreateResult result = new EdgeBatchCreateResult(
+                edgeCandidateCount,
+                existingEdgeCount,
+                edgesToSave.size(),
+                routeCacheHitCount,
+                routeCacheMissCount,
+                kakaoApiCallCount
         );
 
-        return metrics;
+        log.info(
+                "edge batch create: scheduleId={}, visitDate={}, nodeCount={}, edgeCandidateCount={}, existingEdgeCount={}, createdEdgeCount={}, routeCacheHitCount={}, routeCacheMissCount={}, kakaoApiCallCount={}",
+                schedule.getId(),
+                visitDate,
+                sameDateNodes.size(),
+                result.edgeCandidateCount(),
+                result.existingEdgeCount(),
+                result.createdEdgeCount(),
+                result.routeCacheHitCount(),
+                result.routeCacheMissCount(),
+                result.kakaoApiCallCount()
+        );
+
+        return result;
     }
+
+    private List<EdgeCandidate> buildMissingEdgeCandidates(
+            Schedule schedule,
+            List<Node> sameDateNodes,
+            Set<EdgeKey> existingEdgeKeys
+    ) {
+        List<EdgeCandidate> candidates = new ArrayList<>();
+
+        for (Node fromNode : sameDateNodes) {
+            for (Node toNode : sameDateNodes) {
+                if (fromNode.getId().equals(toNode.getId())) {
+                    continue;
+                }
+
+                validateEdgeCreatable(schedule, fromNode, toNode);
+
+                EdgeKey edgeKey = new EdgeKey(fromNode.getId(), toNode.getId());
+
+                if (existingEdgeKeys.contains(edgeKey)) {
+                    continue;
+                }
+
+                candidates.add(new EdgeCandidate(fromNode, toNode));
+            }
+        }
+
+        return candidates;
+    }
+
+    private Map<RouteKey, AttractionRouteCache> loadRouteCacheMap(List<EdgeCandidate> candidates) {
+        Set<Long> attractionIds = candidates.stream()
+                .flatMap(candidate -> java.util.stream.Stream.of(
+                        candidate.fromNode().getAttraction().getId(),
+                        candidate.toNode().getAttraction().getId()
+                ))
+                .collect(Collectors.toSet());
+
+        if (attractionIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        return attractionRouteCacheRepository
+                .findByProviderAndFromAttraction_IdInAndToAttraction_IdIn(
+                        AttractionRouteCache.PROVIDER_KAKAO,
+                        attractionIds,
+                        attractionIds
+                )
+                .stream()
+                .collect(Collectors.toMap(
+                        cache -> new RouteKey(
+                                cache.getFromAttraction().getId(),
+                                cache.getToAttraction().getId()
+                        ),
+                        Function.identity(),
+                        (existing, replacement) -> existing,
+                        HashMap::new
+                ));
+    }
+
     /**
      * 만약에 이미 만들어진 엣지면 그냥 넘어가고, 그렇지 않은 경우에 대해서만 엣지 생성
      */
@@ -199,8 +379,38 @@ public class EdgeService {
         }
     }
 
-    // 카카오 모빌리티 api로 간선 정보 저장
+    // 관광지 이동 캐시를 우선 사용하고, 캐시가 없을 때만 카카오 모빌리티 api로 간선 정보 조회
     private RouteSummary getRouteSummary(Node fromNode, Node toNode) {
+        RouteKey routeKey = RouteKey.from(fromNode, toNode);
+
+        return attractionRouteCacheRepository
+                .findByFromAttraction_IdAndToAttraction_IdAndProvider(
+                        routeKey.fromAttractionId(),
+                        routeKey.toAttractionId(),
+                        AttractionRouteCache.PROVIDER_KAKAO
+                )
+                .map(cache -> new RouteSummary(
+                        cache.getDistanceMeters(),
+                        cache.getDurationMinutes() * 60
+                ))
+                .orElseGet(() -> {
+                    RouteSummary routeSummary = getRouteSummaryFromKakao(fromNode, toNode);
+
+                    AttractionRouteCache cache = AttractionRouteCache.create(
+                            fromNode.getAttraction(),
+                            toNode.getAttraction(),
+                            AttractionRouteCache.PROVIDER_KAKAO,
+                            routeSummary.getDistanceMeters(),
+                            routeSummary.getDurationMinutes()
+                    );
+
+                    attractionRouteCacheRepository.save(cache);
+                    return routeSummary;
+                });
+    }
+
+    // 카카오 모빌리티 api로 간선 정보 조회
+    private RouteSummary getRouteSummaryFromKakao(Node fromNode, Node toNode) {
         BigDecimal originLongitude = fromNode.getAttraction().getLongitude();
         BigDecimal originLatitude = fromNode.getAttraction().getLatitude();
 
@@ -219,89 +429,49 @@ public class EdgeService {
                 destinationLatitude
         );
     }
-    private EdgeRebuildMetrics createEdgesForPlacedNodeWithMetrics(
-            Node node,
-            long start
-    ) {
-        Schedule schedule = node.getSchedule();
-        LocalDate visitDate = node.getVisitDate();
 
-        List<Node> sameDateNodes = nodeRepository
-                .findWithAttractionBySchedule_IdAndVisitDate(schedule.getId(), visitDate);
 
-        int sameDateNodeCount = sameDateNodes.size();
-        int edgeCandidateCount = 0;
-        int existingEdgeCount = 0;
-        int createdEdgeCount = 0;
-        int kakaoApiCallCount = 0;
-
-        for (Node otherNode : sameDateNodes) {
-            if (otherNode.getId().equals(node.getId())) {
-                continue;
-            }
-
-            CreateEdgeMetric forward = createEdgeIfAbsentWithMetric(schedule, node, otherNode);
-            edgeCandidateCount++;
-            existingEdgeCount += forward.existingEdgeCount();
-            createdEdgeCount += forward.createdEdgeCount();
-            kakaoApiCallCount += forward.kakaoApiCallCount();
-
-            CreateEdgeMetric backward = createEdgeIfAbsentWithMetric(schedule, otherNode, node);
-            edgeCandidateCount++;
-            existingEdgeCount += backward.existingEdgeCount();
-            createdEdgeCount += backward.createdEdgeCount();
-            kakaoApiCallCount += backward.kakaoApiCallCount();
-        }
-
-        return new EdgeRebuildMetrics(
-                node.getId(),
-                visitDate,
-                sameDateNodeCount,
-                edgeCandidateCount,
-                existingEdgeCount,
-                createdEdgeCount,
-                kakaoApiCallCount,
-                elapsedMs(start)
-        );
-    }
-    private CreateEdgeMetric createEdgeIfAbsentWithMetric(
-            Schedule schedule,
-            Node fromNode,
-            Node toNode
-    ) {
-        validateEdgeCreatable(schedule, fromNode, toNode);
-
-        boolean exists = edgeRepository.existsByScheduleIdAndFromNodeIdAndToNodeId(
-                schedule.getId(),
-                fromNode.getId(),
-                toNode.getId()
-        );
-
-        if (exists) {
-            return new CreateEdgeMetric(1, 0, 0);
-        }
-
-        RouteSummary routeSummary = getRouteSummary(fromNode, toNode);
-
-        Edge edge = Edge.create(
-                schedule,
-                fromNode,
-                toNode,
-                routeSummary.getDurationMinutes(),
-                routeSummary.getDistanceMeters()
-        );
-
-        edgeRepository.save(edge);
-
-        return new CreateEdgeMetric(0, 1, 1);
-    }
-    private record CreateEdgeMetric(
+    public record EdgeBatchCreateResult(
+            int edgeCandidateCount,
             int existingEdgeCount,
             int createdEdgeCount,
+            int routeCacheHitCount,
+            int routeCacheMissCount,
             int kakaoApiCallCount
     ) {
+        public static EdgeBatchCreateResult empty() {
+            return new EdgeBatchCreateResult(0, 0, 0, 0, 0, 0);
+        }
+
+        public EdgeBatchCreateResult plus(EdgeBatchCreateResult other) {
+            if (other == null) {
+                return this;
+            }
+
+            return new EdgeBatchCreateResult(
+                    this.edgeCandidateCount + other.edgeCandidateCount,
+                    this.existingEdgeCount + other.existingEdgeCount,
+                    this.createdEdgeCount + other.createdEdgeCount,
+                    this.routeCacheHitCount + other.routeCacheHitCount,
+                    this.routeCacheMissCount + other.routeCacheMissCount,
+                    this.kakaoApiCallCount + other.kakaoApiCallCount
+            );
+        }
     }
-    private long elapsedMs(long startNanoTime) {
-        return (System.nanoTime() - startNanoTime) / 1_000_000;
+
+    private record EdgeCandidate(Node fromNode, Node toNode) {
+    }
+
+    private record EdgeKey(Long fromNodeId, Long toNodeId) {
+    }
+
+    private record RouteKey(Long fromAttractionId, Long toAttractionId) {
+        private static RouteKey from(Node fromNode, Node toNode) {
+            return new RouteKey(
+                    fromNode.getAttraction().getId(),
+                    toNode.getAttraction().getId()
+            );
+        }
     }
 }
+

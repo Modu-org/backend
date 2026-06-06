@@ -4,7 +4,6 @@ import com.ssafy.modu.domain.edge.entity.Edge;
 import com.ssafy.modu.domain.edge.service.EdgeService;
 import com.ssafy.modu.domain.node.entity.Node;
 import com.ssafy.modu.domain.routerecommend.dto.request.AutoArrangeRequest;
-import com.ssafy.modu.domain.routerecommend.dto.test.EdgeRebuildMetrics;
 import com.ssafy.modu.domain.schedule.dto.response.ScheduleDetailResponse;
 import com.ssafy.modu.domain.schedule.entity.Schedule;
 import com.ssafy.modu.domain.schedule.repository.ScheduleRepository;
@@ -49,110 +48,95 @@ public class RouteRecommendService {
             Long userId,
             AutoArrangeRequest request
     ) {
-        long totalStart = System.nanoTime();
+        long totalStart = System.currentTimeMillis();
 
-        long loadStart = System.nanoTime();
+        long loadStart = System.currentTimeMillis();
         Schedule schedule = scheduleRepository.findWithNodesByIdAndUser_Id(scheduleId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+        long loadTimeMs = System.currentTimeMillis() - loadStart;
 
         List<Node> nodes = schedule.getNodes();
-        long loadTimeMs = elapsedMs(loadStart);
-
-        long conditionStart = System.nanoTime();
-        Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap = toConditionMap(request);
-        validateRequest(schedule, nodes, conditionMap);
-        long conditionTimeMs = elapsedMs(conditionStart);
-
-        long beforeUnscheduledNodeCount = nodes.stream()
+        int nodeCount = nodes.size();
+        int beforeUnscheduledNodeCount = (int) nodes.stream()
                 .filter(node -> node.getVisitDate() == null)
                 .count();
 
-        long placeStart = System.nanoTime();
+        long conditionStart = System.currentTimeMillis();
+        Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap = toConditionMap(request);
+        validateRequest(schedule, nodes, conditionMap);
+        long conditionTimeMs = System.currentTimeMillis() - conditionStart;
+
+        // 날짜가 없는 노드는 AI 요청 전에 날짜를 먼저 배정한다.
+        long placeStart = System.currentTimeMillis();
         List<Node> newlyPlacedNodes = placeUnscheduledNodes(schedule, nodes, conditionMap);
-        long placeTimeMs = elapsedMs(placeStart);
+        long placeTimeMs = System.currentTimeMillis() - placeStart;
 
-        long edgeStart = System.nanoTime();
+        // 새로 날짜가 배정된 노드를 visitDate 기준으로 묶고, 날짜 단위로 누락 Edge를 일괄 생성한다.
+        long edgeStart = System.currentTimeMillis();
+        EdgeService.EdgeBatchCreateResult edgeResult =
+                edgeService.createMissingEdgesForNewlyPlacedNodes(newlyPlacedNodes);
+        long edgeTimeMs = System.currentTimeMillis() - edgeStart;
 
-        List<EdgeRebuildMetrics> edgeMetrics = new ArrayList<>();
-
-        for (Node node : newlyPlacedNodes) {
-            edgeMetrics.add(edgeService.rebuildEdgesForMovedNodeWithMetrics(node));
-        }
-
-        long edgeTimeMs = elapsedMs(edgeStart);
-
-        int edgeCandidateCount = edgeMetrics.stream()
-                .mapToInt(EdgeRebuildMetrics::edgeCandidateCount)
-                .sum();
-
-        int existingEdgeCount = edgeMetrics.stream()
-                .mapToInt(EdgeRebuildMetrics::existingEdgeCount)
-                .sum();
-
-        int createdEdgeCount = edgeMetrics.stream()
-                .mapToInt(EdgeRebuildMetrics::createdEdgeCount)
-                .sum();
-
-        int kakaoApiCallCount = edgeMetrics.stream()
-                .mapToInt(EdgeRebuildMetrics::kakaoApiCallCount)
-                .sum();
-
-        long edgeLoadStart = System.nanoTime();
+        long edgeLoadStart = System.currentTimeMillis();
         List<Edge> edges = edgeService.getEdgesByScheduleId(scheduleId);
-        long edgeLoadTimeMs = elapsedMs(edgeLoadStart);
+        long edgeLoadTimeMs = System.currentTimeMillis() - edgeLoadStart;
 
-        long requestBuildStart = System.nanoTime();
+        long requestBuildStart = System.currentTimeMillis();
         RouteRecommendAiRequest aiRequest = buildAiRequest(schedule, nodes, edges, conditionMap);
-        long requestBuildTimeMs = elapsedMs(requestBuildStart);
+        long requestBuildTimeMs = System.currentTimeMillis() - requestBuildStart;
 
-        long aiStart = System.nanoTime();
+        long aiStart = System.currentTimeMillis();
         RouteRecommendAiResponse aiResponse = aiService.recommendRoute(aiRequest);
-        long aiTimeMs = elapsedMs(aiStart);
+        long aiTimeMs = System.currentTimeMillis() - aiStart;
 
-        long validateStart = System.nanoTime();
+        long validateStart = System.currentTimeMillis();
         validateAiResponse(aiRequest, aiResponse, conditionMap);
-        long validateTimeMs = elapsedMs(validateStart);
+        long validateTimeMs = System.currentTimeMillis() - validateStart;
 
-        long applyStart = System.nanoTime();
+        long applyStart = System.currentTimeMillis();
         applyRecommendedOrder(nodes, aiResponse);
-        long applyTimeMs = elapsedMs(applyStart);
+        long applyTimeMs = System.currentTimeMillis() - applyStart;
 
-        long finalEdgeStart = System.nanoTime();
+        long finalEdgeLoadStart = System.currentTimeMillis();
         List<Edge> finalEdges = edgeService.getEdgesByScheduleId(scheduleId);
-        long finalEdgeLoadTimeMs = elapsedMs(finalEdgeStart);
+        long finalEdgeLoadTimeMs = System.currentTimeMillis() - finalEdgeLoadStart;
 
-        long totalTimeMs = elapsedMs(totalStart);
+        long totalTimeMs = System.currentTimeMillis() - totalStart;
 
         log.info("""
-        [AutoArrangePerf]
-        scheduleId={}
-        nodeCount={}
-        beforeUnscheduledNodeCount={}
-        newlyPlacedNodeCount={}
-        edgeCandidateCount={}
-        existingEdgeCount={}
-        createdEdgeCount={}
-        kakaoApiCallCount={}
-        loadTimeMs={}
-        conditionTimeMs={}
-        placeTimeMs={}
-        edgeTimeMs={}
-        edgeLoadTimeMs={}
-        requestBuildTimeMs={}
-        aiTimeMs={}
-        validateTimeMs={}
-        applyTimeMs={}
-        finalEdgeLoadTimeMs={}
-        totalTimeMs={}
-        """,
+                        auto arrange performance:
+                        scheduleId={}
+                        nodeCount={}
+                        beforeUnscheduledNodeCount={}
+                        newlyPlacedNodeCount={}
+                        edgeCandidateCount={}
+                        existingEdgeCount={}
+                        createdEdgeCount={}
+                        routeCacheHitCount={}
+                        routeCacheMissCount={}
+                        kakaoApiCallCount={}
+                        loadTimeMs={}
+                        conditionTimeMs={}
+                        placeTimeMs={}
+                        edgeTimeMs={}
+                        edgeLoadTimeMs={}
+                        requestBuildTimeMs={}
+                        aiTimeMs={}
+                        validateTimeMs={}
+                        applyTimeMs={}
+                        finalEdgeLoadTimeMs={}
+                        totalTimeMs={}
+                        """,
                 scheduleId,
-                nodes.size(),
+                nodeCount,
                 beforeUnscheduledNodeCount,
                 newlyPlacedNodes.size(),
-                edgeCandidateCount,
-                existingEdgeCount,
-                createdEdgeCount,
-                kakaoApiCallCount,
+                edgeResult.edgeCandidateCount(),
+                edgeResult.existingEdgeCount(),
+                edgeResult.createdEdgeCount(),
+                edgeResult.routeCacheHitCount(),
+                edgeResult.routeCacheMissCount(),
+                edgeResult.kakaoApiCallCount(),
                 loadTimeMs,
                 conditionTimeMs,
                 placeTimeMs,
@@ -865,9 +849,5 @@ public class RouteRecommendService {
 
     private String edgeKey(Long fromNodeId, Long toNodeId) {
         return fromNodeId + "-" + toNodeId;
-    }
-
-    private long elapsedMs(long startNanoTime) {
-        return (System.nanoTime() - startNanoTime) / 1_000_000;
     }
 }
