@@ -111,7 +111,12 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/regions/**"
                         ).permitAll()
-
+                        .requestMatchers(
+                                "/api/regions/**"
+                        ).permitAll()
+                        .requestMatchers(
+                                "/api/attractions/**"
+                        ).permitAll()
                         // 위에서 허용한 경로를 제외한 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
