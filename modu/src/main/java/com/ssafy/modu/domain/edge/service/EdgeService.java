@@ -4,12 +4,14 @@ import com.ssafy.modu.domain.edge.entity.Edge;
 import com.ssafy.modu.domain.edge.repository.EdgeRepository;
 import com.ssafy.modu.domain.node.entity.Node;
 import com.ssafy.modu.domain.node.repository.NodeRepository;
+import com.ssafy.modu.domain.routerecommend.dto.test.EdgeRebuildMetrics;
 import com.ssafy.modu.domain.schedule.entity.Schedule;
 import com.ssafy.modu.external.kakao.KakaoMobilityClient;
 import com.ssafy.modu.external.kakao.dto.RouteSummary;
 import com.ssafy.modu.global.exception.BusinessException;
 import com.ssafy.modu.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class EdgeService {
 
     private final EdgeRepository edgeRepository;
@@ -84,6 +87,54 @@ public class EdgeService {
         edgeRepository.deleteAllByNodeId(nodeId);
     }
 
+
+    public EdgeRebuildMetrics rebuildEdgesForMovedNodeWithMetrics(Node node) {
+        long start = System.nanoTime();
+
+        if (node.getId() == null) {
+            return EdgeRebuildMetrics.skipped(null, null, elapsedMs(start));
+        }
+
+        edgeRepository.deleteAllByNodeId(node.getId());
+
+        if (node.getVisitDate() == null) {
+            EdgeRebuildMetrics metrics = EdgeRebuildMetrics.skipped(
+                    node.getId(),
+                    null,
+                    elapsedMs(start)
+            );
+
+            log.info(
+                    "[EdgeRebuildPerf] nodeId={}, visitDate={}, sameDateNodeCount={}, edgeCandidateCount={}, existingEdgeCount={}, createdEdgeCount={}, kakaoApiCallCount={}, elapsedMs={}",
+                    metrics.nodeId(),
+                    metrics.visitDate(),
+                    metrics.sameDateNodeCount(),
+                    metrics.edgeCandidateCount(),
+                    metrics.existingEdgeCount(),
+                    metrics.createdEdgeCount(),
+                    metrics.kakaoApiCallCount(),
+                    metrics.elapsedMs()
+            );
+
+            return metrics;
+        }
+
+        EdgeRebuildMetrics metrics = createEdgesForPlacedNodeWithMetrics(node, start);
+
+        log.info(
+                "[EdgeRebuildPerf] nodeId={}, visitDate={}, sameDateNodeCount={}, edgeCandidateCount={}, existingEdgeCount={}, createdEdgeCount={}, kakaoApiCallCount={}, elapsedMs={}",
+                metrics.nodeId(),
+                metrics.visitDate(),
+                metrics.sameDateNodeCount(),
+                metrics.edgeCandidateCount(),
+                metrics.existingEdgeCount(),
+                metrics.createdEdgeCount(),
+                metrics.kakaoApiCallCount(),
+                metrics.elapsedMs()
+        );
+
+        return metrics;
+    }
     /**
      * 만약에 이미 만들어진 엣지면 그냥 넘어가고, 그렇지 않은 경우에 대해서만 엣지 생성
      */
@@ -167,5 +218,90 @@ public class EdgeService {
                 destinationLongitude,
                 destinationLatitude
         );
+    }
+    private EdgeRebuildMetrics createEdgesForPlacedNodeWithMetrics(
+            Node node,
+            long start
+    ) {
+        Schedule schedule = node.getSchedule();
+        LocalDate visitDate = node.getVisitDate();
+
+        List<Node> sameDateNodes = nodeRepository
+                .findWithAttractionBySchedule_IdAndVisitDate(schedule.getId(), visitDate);
+
+        int sameDateNodeCount = sameDateNodes.size();
+        int edgeCandidateCount = 0;
+        int existingEdgeCount = 0;
+        int createdEdgeCount = 0;
+        int kakaoApiCallCount = 0;
+
+        for (Node otherNode : sameDateNodes) {
+            if (otherNode.getId().equals(node.getId())) {
+                continue;
+            }
+
+            CreateEdgeMetric forward = createEdgeIfAbsentWithMetric(schedule, node, otherNode);
+            edgeCandidateCount++;
+            existingEdgeCount += forward.existingEdgeCount();
+            createdEdgeCount += forward.createdEdgeCount();
+            kakaoApiCallCount += forward.kakaoApiCallCount();
+
+            CreateEdgeMetric backward = createEdgeIfAbsentWithMetric(schedule, otherNode, node);
+            edgeCandidateCount++;
+            existingEdgeCount += backward.existingEdgeCount();
+            createdEdgeCount += backward.createdEdgeCount();
+            kakaoApiCallCount += backward.kakaoApiCallCount();
+        }
+
+        return new EdgeRebuildMetrics(
+                node.getId(),
+                visitDate,
+                sameDateNodeCount,
+                edgeCandidateCount,
+                existingEdgeCount,
+                createdEdgeCount,
+                kakaoApiCallCount,
+                elapsedMs(start)
+        );
+    }
+    private CreateEdgeMetric createEdgeIfAbsentWithMetric(
+            Schedule schedule,
+            Node fromNode,
+            Node toNode
+    ) {
+        validateEdgeCreatable(schedule, fromNode, toNode);
+
+        boolean exists = edgeRepository.existsByScheduleIdAndFromNodeIdAndToNodeId(
+                schedule.getId(),
+                fromNode.getId(),
+                toNode.getId()
+        );
+
+        if (exists) {
+            return new CreateEdgeMetric(1, 0, 0);
+        }
+
+        RouteSummary routeSummary = getRouteSummary(fromNode, toNode);
+
+        Edge edge = Edge.create(
+                schedule,
+                fromNode,
+                toNode,
+                routeSummary.getDurationMinutes(),
+                routeSummary.getDistanceMeters()
+        );
+
+        edgeRepository.save(edge);
+
+        return new CreateEdgeMetric(0, 1, 1);
+    }
+    private record CreateEdgeMetric(
+            int existingEdgeCount,
+            int createdEdgeCount,
+            int kakaoApiCallCount
+    ) {
+    }
+    private long elapsedMs(long startNanoTime) {
+        return (System.nanoTime() - startNanoTime) / 1_000_000;
     }
 }
