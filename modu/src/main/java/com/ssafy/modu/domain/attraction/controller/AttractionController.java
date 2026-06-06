@@ -26,19 +26,21 @@ public class AttractionController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @ModelAttribute AttractionSearchRequest request
     ) {
+        Long userId = userDetails != null ? userDetails.getUserId() : null;
+
         Page<AttractionListResponse> page =
-                attractionService.searchAttractions(userDetails.getUserId(), request);
+                attractionService.searchAttractions(userId, request);
 
         AttractionPageResponse data = AttractionPageResponse.from(page);
 
         if (page.isEmpty()) {
             return ResponseEntity.ok(
-                    ApiResponse.success(SuccessCode.NO_CONTENT_DATA,"조건에 맞는 관광지가 없습니다.", data)
+                    ApiResponse.success(SuccessCode.NO_CONTENT_DATA, "조건에 맞는 관광지가 없습니다.", data)
             );
         }
 
         return ResponseEntity.ok(
-                ApiResponse.success(SuccessCode.OK,"관광지 목록 조회에 성공했습니다.", data)
+                ApiResponse.success(SuccessCode.OK, "관광지 목록 조회에 성공했습니다.", data)
         );
     }
     @GetMapping("/{attractionId}")
