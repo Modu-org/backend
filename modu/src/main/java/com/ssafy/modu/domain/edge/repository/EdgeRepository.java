@@ -25,11 +25,12 @@ public interface EdgeRepository extends JpaRepository<Edge, Long> {
 
     List<Edge> findByScheduleId(Long scheduleId);
 
-    List<Edge> findByScheduleIdAndFromNodeIdInAndToNodeIdIn(
-            Long scheduleId,
-            Collection<Long> fromNodeIds,
-            Collection<Long> toNodeIds
-    );
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+        delete from Edge e
+        where e.schedule.id = :scheduleId
+    """)
+    void deleteAllByScheduleId(Long scheduleId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""

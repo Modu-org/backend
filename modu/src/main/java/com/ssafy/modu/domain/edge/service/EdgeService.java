@@ -117,6 +117,9 @@ public class EdgeService {
 
         edgeRepository.save(edge);
     }
+    public void deleteEdgesByScheduleId(Long scheduleId) {
+        edgeRepository.deleteAllByScheduleId(scheduleId);
+    }
 
     /**
      * 엣지 생성 정합성 판단
