@@ -38,7 +38,8 @@ public class VoiceSearchController {
                 Object data = voiceSearchService.search(
                                 request.getText(),
                                 request.getType(),
-                                userId);
+                                userId,
+                                request.getAttractionId());
 
                 return ResponseEntity.ok(
                                 ApiResponse.success(SuccessCode.OK, "음성 검색에 성공했습니다.", data));

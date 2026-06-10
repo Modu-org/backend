@@ -14,4 +14,6 @@ public class VoiceSearchRequest {
 
     @NotNull
     private Integer type;
+
+    private Long attractionId;
 }

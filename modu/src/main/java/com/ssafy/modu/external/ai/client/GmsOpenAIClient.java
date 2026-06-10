@@ -95,4 +95,35 @@ public class GmsOpenAIClient implements AIClient {
             throw new BusinessException(ErrorCode.AI_API_ERROR);
         }
     }
+
+    public byte[] generateSpeech(String text) {
+        String url = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/audio/speech";
+
+        Map<String, Object> requestBody = Map.of(
+                "model", "gpt-4o-mini-tts",
+                "input", text,
+                "voice", "alloy"
+        );
+
+        try {
+            return webClient.post()
+                    .uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> headers.setBearerAuth(properties.getApiKey()))
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(byte[].class)
+                    .block();
+        } catch (WebClientResponseException e) {
+            log.error("GMS OpenAI Speech API 호출 실패. status={}, body={}",
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString(),
+                    e
+            );
+            throw new BusinessException(ErrorCode.AI_API_ERROR);
+        } catch (Exception e) {
+            log.error("GMS OpenAI Speech API 호출 중 예상치 못한 오류 발생", e);
+            throw new BusinessException(ErrorCode.AI_API_ERROR);
+        }
+    }
 }

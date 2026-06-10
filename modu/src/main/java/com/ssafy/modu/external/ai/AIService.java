@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.modu.external.ai.dto.request.RouteRecommendAiRequest;
 import com.ssafy.modu.external.ai.dto.response.RouteRecommendAiResponse;
 import com.ssafy.modu.domain.voicesearch.dto.response.VoiceSearchParsedResult;
+import com.ssafy.modu.domain.voicesearch.dto.response.VoiceSearchDetailResponse;
 import com.ssafy.modu.external.ai.client.GmsGeminiClient;
 import com.ssafy.modu.external.ai.client.GmsOpenAIClient;
 import com.ssafy.modu.global.exception.BusinessException;
@@ -116,6 +117,19 @@ public class AIService {
             return objectMapper.readValue(trimmed, VoiceSearchParsedResult.class);
         } catch (Exception e) {
             log.error("AI 응답 파싱 실패. response={}", responseText, e);
+            throw new BusinessException(ErrorCode.VOICE_SEARCH_PARSE_FAILED);
+        }
+    }
+
+    /**
+     * AI 응답 텍스트를 VoiceSearchDetailResponse로 변환한다.
+     */
+    public VoiceSearchDetailResponse parseVoiceDetailRead(String responseText) {
+        try {
+            String trimmed = responseText.trim();
+            return objectMapper.readValue(trimmed, VoiceSearchDetailResponse.class);
+        } catch (Exception e) {
+            log.error("AI 상세 읽기 응답 파싱 실패. response={}", responseText, e);
             throw new BusinessException(ErrorCode.VOICE_SEARCH_PARSE_FAILED);
         }
     }
