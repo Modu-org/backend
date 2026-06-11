@@ -2,6 +2,8 @@ package com.ssafy.modu.domain.attraction.ranking.controller;
 
 import com.ssafy.modu.domain.attraction.ranking.dto.PopularAttractionResponse;
 import com.ssafy.modu.domain.attraction.ranking.service.PopularAttractionQueryService;
+import com.ssafy.modu.global.common.ApiResponse;
+import com.ssafy.modu.global.common.SuccessCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,12 +18,19 @@ public class PopularAttractionController {
     private final PopularAttractionQueryService popularAttractionQueryService;
 
     @GetMapping("/{regionCode}/popular-attractions")
-    public ResponseEntity<List<PopularAttractionResponse>> getPopularAttractions(
+    public ResponseEntity<ApiResponse<List<PopularAttractionResponse>>> getPopularAttractions(
             @PathVariable String regionCode,
             @RequestParam(defaultValue = "10") int limit
     ) {
+        List<PopularAttractionResponse> response =
+                popularAttractionQueryService.getPopularAttractions(regionCode, limit);
+
         return ResponseEntity.ok(
-                popularAttractionQueryService.getPopularAttractions(regionCode, limit)
+                ApiResponse.success(
+                        SuccessCode.OK,
+                        "지역별 인기 관광지 목록 조회에 성공했습니다.",
+                        response
+                )
         );
     }
 }
