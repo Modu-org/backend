@@ -2,6 +2,7 @@ package com.ssafy.modu.domain.attraction.service;
 
 import com.ssafy.modu.domain.accessibility.entity.AccessibilityInfo;
 import com.ssafy.modu.domain.accessibility.entity.enums.AccessibilityCategory;
+import com.ssafy.modu.domain.accessibility.entity.enums.AccessibilityStatus;
 import com.ssafy.modu.domain.accessibility.repository.AccessibilityInfoRepository;
 import com.ssafy.modu.domain.attraction.dto.condition.AttractionSearchCondition;
 import com.ssafy.modu.domain.attraction.dto.request.AttractionSearchRequest;
@@ -83,7 +84,7 @@ public class AttractionService {
          */
         UserDetail userDetail = userId != null
                 ? userDetailRepository.findById(userId)
-                        .orElseThrow(() -> new BusinessException(USER_NOT_FOUND))
+                .orElseThrow(() -> new BusinessException(USER_NOT_FOUND))
                 : null;
 
         /*
@@ -162,6 +163,7 @@ public class AttractionService {
 
         Map<Long, List<AttractionAccessibilityResponse>> accessibilityMap =
                 accessibilityInfoRepository.findByAttraction_IdIn(attractionIds).stream()
+                        .filter(info -> info.getStatus() != AccessibilityStatus.UNKNOWN)
                         .collect(Collectors.groupingBy(
                                 info -> info.getAttraction().getId(),
                                 Collectors.collectingAndThen(
@@ -193,6 +195,7 @@ public class AttractionService {
      * 2. 무장애 정보도 함께 fetch join해서 가져온다.
      * 3. 관광지가 없으면 ATTRACTION_NOT_FOUND 예외를 발생시킨다.
      * 4. AttractionDetailResponse로 변환해서 반환한다.
+     *
      */
     public AttractionDetailResponse getAttractionDetail(Long attractionId) {
         /*
