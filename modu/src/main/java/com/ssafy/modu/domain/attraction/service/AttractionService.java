@@ -2,6 +2,7 @@ package com.ssafy.modu.domain.attraction.service;
 
 import com.ssafy.modu.domain.accessibility.entity.AccessibilityInfo;
 import com.ssafy.modu.domain.accessibility.entity.enums.AccessibilityCategory;
+import com.ssafy.modu.domain.accessibility.entity.enums.AccessibilityStatus;
 import com.ssafy.modu.domain.accessibility.repository.AccessibilityInfoRepository;
 import com.ssafy.modu.domain.attraction.dto.condition.AttractionSearchCondition;
 import com.ssafy.modu.domain.attraction.dto.request.AttractionSearchRequest;
@@ -104,6 +105,7 @@ public class AttractionService {
          */
         Map<Long, List<AttractionAccessibilityResponse>> accessibilityMap =
                 accessibilityInfoRepository.findByAttraction_IdIn(attractionIds).stream()
+                        .filter(info -> info.getStatus() == AccessibilityStatus.AVAILABLE)
                         .filter(info -> categories.isEmpty() || categories.contains(info.getCategory()))
                         .collect(Collectors.groupingBy(
                                 info -> info.getAttraction().getId(),
