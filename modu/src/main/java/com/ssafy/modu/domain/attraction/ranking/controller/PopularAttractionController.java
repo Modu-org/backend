@@ -22,14 +22,24 @@ public class PopularAttractionController {
             @PathVariable String regionCode,
             @RequestParam(defaultValue = "10") int limit
     ) {
-        List<PopularAttractionResponse> response =
+        List<PopularAttractionResponse> data =
                 popularAttractionQueryService.getPopularAttractions(regionCode, limit);
+
+        if (data.isEmpty()) {
+            return ResponseEntity.ok(
+                    ApiResponse.success(
+                            SuccessCode.NO_CONTENT_DATA,
+                            "해당 지역의 인기 관광지 데이터가 없습니다.",
+                            data
+                    )
+            );
+        }
 
         return ResponseEntity.ok(
                 ApiResponse.success(
                         SuccessCode.OK,
                         "지역별 인기 관광지 목록 조회에 성공했습니다.",
-                        response
+                        data
                 )
         );
     }
