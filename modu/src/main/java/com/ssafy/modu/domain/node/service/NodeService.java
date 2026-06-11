@@ -1,6 +1,7 @@
 package com.ssafy.modu.domain.node.service;
 
 import com.ssafy.modu.domain.attraction.entity.Attraction;
+import com.ssafy.modu.domain.attraction.ranking.event.AttractionAddedToScheduleEvent;
 import com.ssafy.modu.domain.attraction.repository.AttractionRepository;
 import com.ssafy.modu.domain.edge.entity.Edge;
 import com.ssafy.modu.domain.edge.service.EdgeService;
@@ -16,6 +17,7 @@ import com.ssafy.modu.domain.schedule.repository.ScheduleRepository;
 import com.ssafy.modu.global.exception.BusinessException;
 import com.ssafy.modu.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,7 @@ public class NodeService {
     private final NodeRepository nodeRepository;
     private final AttractionRepository attractionRepository;
     private final EdgeService edgeService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 노드를 새로 생성해서 스케줄에 넣음.
@@ -52,7 +55,12 @@ public class NodeService {
         schedule.addNode(node);
 
         Node savedNode = nodeRepository.save(node);
-
+        eventPublisher.publishEvent(
+                new AttractionAddedToScheduleEvent(
+                        attraction.getId(),
+                        attraction.getLDongRegnCd()
+                )
+        );
         return NodeResponse.from(savedNode);
     }
 
