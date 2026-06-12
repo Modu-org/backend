@@ -34,8 +34,7 @@ public class AttractionSpecification {
         - 필요하면 나중에 포함 여부를 정책으로 바꿀 수 있다.
      */
     private static final List<AccessibilityStatus> DEFAULT_VALID_STATUSES = List.of(
-            AccessibilityStatus.AVAILABLE,
-            AccessibilityStatus.PARTIAL
+            AccessibilityStatus.AVAILABLE
     );
 
     /*
