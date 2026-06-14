@@ -54,22 +54,28 @@ public class AiScheduleCommandService {
                 "role", "user",
                 "content", buildUserPrompt(request)
         ));
-
+        // ScheduleToolHandler의 구현체들의 getDefinition들을 다 가지고 옴
+        // 노드 순서를 이동하기 위한 백엔드 메서드들의 함수 정보들을 가지고 옴
         List<Map<String, Object>> tools = scheduleToolRegistry.getDefinitions();
         List<String> executedTools = new ArrayList<>();
         ScheduleDetailResponse latestSchedule = null;
         String latestMessage = null;
 
+        // 여러 차례에 걸쳐서 동작이 진행될 수 있기 때문에 round를 두고, ai와 여러번 대화를 거침
+        // 대화를 하면서, 점점 더 요구사항이 구체화됨
         for (int round = 0; round < MAX_TOOL_CALL_ROUND; round++) {
             ToolChatResponse aiResponse = gmsOpenAIClient.chatWithTools(messages, tools);
 
+            // 더 이상 받아올 응답이 없는 상황에서는 일이 다 처리되었다고 가정
             if (!aiResponse.hasToolCalls()) {
                 latestMessage = aiResponse.getContent();
                 return AiScheduleCommandResponse.builder()
                         .message(latestMessage == null || latestMessage.isBlank()
                                 ? "일정 명령 처리가 완료되었습니다."
                                 : latestMessage)
+                        // db에 적용된 일정
                         .schedule(latestSchedule)
+                        // 제일 마지막으로 실행된 tool
                         .executedTools(executedTools)
                         .build();
             }
@@ -77,6 +83,7 @@ public class AiScheduleCommandService {
             messages.add(objectMapper.convertValue(aiResponse.getAssistantMessage(), Map.class));
 
             for (ToolCall toolCall : aiResponse.getToolCalls()) {
+                // 실제로 백엔드 로직 실행
                 ToolExecutionResult toolResult = scheduleToolExecutor.execute(
                         context,
                         toolCall.getName(),
@@ -100,6 +107,7 @@ public class AiScheduleCommandService {
         throw new BusinessException(ErrorCode.AI_TOOL_CALL_LIMIT_EXCEEDED);
     }
 
+    // 일정 수정 tool을 위한 페르소나 프롬프트 작성
     private String buildDeveloperPrompt() {
         return """
                 너는 여행 일정 편집 도우미다.
@@ -112,7 +120,7 @@ public class AiScheduleCommandService {
                 최종 응답은 한국어로 짧게 작성한다.
                 """;
     }
-
+    // 사용자에 따라서 달라지는 프롬프트 작성
     private String buildUserPrompt(AiScheduleCommandRequest request) {
         return """
                 대상 날짜: %s

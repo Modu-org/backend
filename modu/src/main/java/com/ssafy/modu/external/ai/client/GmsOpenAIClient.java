@@ -110,6 +110,19 @@ public class GmsOpenAIClient implements AIClient {
                 "temperature", 0,
                 "messages", messages,
                 "tools", tools,
+                /*
+                {
+                  "tool_calls": [
+                    {
+                      "id": "call_...",
+                      "function": {
+                        "name": "rearrange_nodes",
+                        "arguments": "{\"operation\":\"MOVE_TO_LAST\",\"sourceOrder\":2}"
+                      }
+                    }
+                  ]
+                }
+                 */
                 "tool_choice", "auto"
         );
 
