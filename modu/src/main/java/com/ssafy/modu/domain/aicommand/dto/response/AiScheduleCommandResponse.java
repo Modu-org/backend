@@ -1,16 +1,20 @@
 package com.ssafy.modu.domain.aicommand.dto.response;
 
 import com.ssafy.modu.domain.schedule.dto.response.ScheduleDetailResponse;
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import java.util.List;
-
 @Getter
-@Builder
+@AllArgsConstructor
 public class AiScheduleCommandResponse {
 
-    private String message;
+    private String assistantMessage;
     private ScheduleDetailResponse schedule;
-    private List<String> executedTools;
+
+    public static AiScheduleCommandResponse of(
+            String assistantMessage,
+            ScheduleDetailResponse schedule
+    ) {
+        return new AiScheduleCommandResponse(assistantMessage, schedule);
+    }
 }
