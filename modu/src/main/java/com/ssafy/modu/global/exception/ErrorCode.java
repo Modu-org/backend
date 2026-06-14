@@ -49,7 +49,12 @@ public enum ErrorCode {
     INVALID_REVIEW_REQUEST(HttpStatus.BAD_REQUEST, 904, "리뷰 입력값이 올바르지 않습니다."),
     REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, 920, "이미 해당 관광지에 리뷰를 작성했습니다."),
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "존재하지 않는 리뷰입니다."),
-    REVIEW_ACCESS_DENIED(HttpStatus.FORBIDDEN, 901, "리뷰에 접근할 권한이 없습니다.");
+    REVIEW_ACCESS_DENIED(HttpStatus.FORBIDDEN, 901, "리뷰에 접근할 권한이 없습니다."),
+
+    UNSUPPORTED_AI_TOOL(HttpStatus.BAD_REQUEST, 950, "지원하지 않는 AI 도구입니다."),
+    INVALID_AI_TOOL_ARGUMENTS(HttpStatus.BAD_REQUEST, 951, "AI 도구 호출 인자가 올바르지 않습니다."),
+    UNSUPPORTED_AI_TOOL_OPERATION(HttpStatus.BAD_REQUEST, 952, "지원하지 않는 AI 도구 작업입니다."),
+    AI_TOOL_CALL_LIMIT_EXCEEDED(HttpStatus.INTERNAL_SERVER_ERROR, 953, "AI 도구 호출 횟수를 초과했습니다.");
 
     private final HttpStatus httpStatus;
     private final int status;
