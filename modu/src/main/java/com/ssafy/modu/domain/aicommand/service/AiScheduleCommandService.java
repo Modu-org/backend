@@ -69,15 +69,15 @@ public class AiScheduleCommandService {
             // 더 이상 받아올 응답이 없는 상황에서는 일이 다 처리되었다고 가정
             if (!aiResponse.hasToolCalls()) {
                 latestMessage = aiResponse.getContent();
-                return AiScheduleCommandResponse.builder()
-                        .message(latestMessage == null || latestMessage.isBlank()
-                                ? "일정 명령 처리가 완료되었습니다."
-                                : latestMessage)
-                        // db에 적용된 일정
-                        .schedule(latestSchedule)
-                        // 제일 마지막으로 실행된 tool
-                        .executedTools(executedTools)
-                        .build();
+
+                String assistantMessage = latestMessage == null || latestMessage.isBlank()
+                        ? "일정 명령 처리가 완료되었습니다."
+                        : latestMessage;
+
+                return AiScheduleCommandResponse.of(
+                        assistantMessage,
+                        latestSchedule
+                );
             }
 
             messages.add(objectMapper.convertValue(aiResponse.getAssistantMessage(), Map.class));
