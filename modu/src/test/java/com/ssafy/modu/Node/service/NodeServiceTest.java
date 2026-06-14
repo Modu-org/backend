@@ -276,15 +276,13 @@ class NodeServiceTest {
 
     private Schedule createSchedule(Long scheduleId, Long userId) {
         User user = mock(User.class);
+        lenient().when(user.getId()).thenReturn(userId);
 
         Schedule schedule = Schedule.create(
                 user,
                 "대구 여행",
-                "대구광역시",
                 LocalDate.of(2026, 5, 10),
-                LocalDate.of(2026, 5, 11),
-                3,
-                150000
+                LocalDate.of(2026, 5, 11)
         );
 
         ReflectionTestUtils.setField(schedule, "id", scheduleId);
