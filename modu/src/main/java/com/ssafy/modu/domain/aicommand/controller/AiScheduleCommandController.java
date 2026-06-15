@@ -29,7 +29,7 @@ public class AiScheduleCommandController {
             @PathVariable Long scheduleId,
             @Valid @RequestBody AiScheduleCommandRequest request
     ) {
-        AiScheduleCommandResponse data = aiScheduleCommandService.handleCommand(
+        AiScheduleCommandResponse data = aiScheduleCommandService.handleScheduleScopedCommand(
                 userDetails.getUserId(),
                 scheduleId,
                 request
