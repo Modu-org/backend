@@ -18,7 +18,11 @@ public class ScheduleToolExecutor {
             String toolName,
             JsonNode arguments
     ) {
-        ScheduleToolHandler handler = toolRegistry.getHandler(toolName);
+        ScheduleToolHandler handler = toolRegistry.getHandler(
+                toolName,
+                context.getScope()
+        );
+
         return handler.execute(context, arguments);
     }
 }
