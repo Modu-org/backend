@@ -48,107 +48,32 @@ public class RouteRecommendService {
             Long userId,
             AutoArrangeRequest request
     ) {
-        long totalStart = System.currentTimeMillis();
-
-        long loadStart = System.currentTimeMillis();
         Schedule schedule = scheduleRepository.findWithNodesByIdAndUser_Id(scheduleId, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-        long loadTimeMs = System.currentTimeMillis() - loadStart;
 
         List<Node> nodes = schedule.getNodes();
-        int nodeCount = nodes.size();
-        int beforeUnscheduledNodeCount = (int) nodes.stream()
-                .filter(node -> node.getVisitDate() == null)
-                .count();
 
-        long conditionStart = System.currentTimeMillis();
         Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap = toConditionMap(request);
+
         validateRequest(schedule, nodes, conditionMap);
-        long conditionTimeMs = System.currentTimeMillis() - conditionStart;
 
-        // 날짜가 없는 노드는 AI 요청 전에 날짜를 먼저 배정한다.
-        long placeStart = System.currentTimeMillis();
-        List<Node> newlyPlacedNodes = placeUnscheduledNodes(schedule, nodes, conditionMap);
-        long placeTimeMs = System.currentTimeMillis() - placeStart;
+        // start/end 조건 노드만 날짜에 고정하고, 나머지 노드는 기존 날짜를 무시한 뒤 다시 배정한다.
+        List<Node> arrangedNodes = placeUnscheduledNodes(schedule, nodes, conditionMap);
 
-        // 새로 날짜가 배정된 노드를 visitDate 기준으로 묶고, 날짜 단위로 누락 Edge를 일괄 생성한다.
-        long edgeStart = System.currentTimeMillis();
-        EdgeService.EdgeBatchCreateResult edgeResult =
-                edgeService.createMissingEdgesForNewlyPlacedNodes(newlyPlacedNodes);
-        long edgeTimeMs = System.currentTimeMillis() - edgeStart;
+        // 기존 Edge는 재사용하고, 없는 Edge만 날짜 단위로 일괄 생성한다.
+        edgeService.createMissingEdgesForNewlyPlacedNodes(arrangedNodes);
 
-        long edgeLoadStart = System.currentTimeMillis();
         List<Edge> edges = edgeService.getEdgesByScheduleId(scheduleId);
-        long edgeLoadTimeMs = System.currentTimeMillis() - edgeLoadStart;
 
-        long requestBuildStart = System.currentTimeMillis();
         RouteRecommendAiRequest aiRequest = buildAiRequest(schedule, nodes, edges, conditionMap);
-        long requestBuildTimeMs = System.currentTimeMillis() - requestBuildStart;
 
-        long aiStart = System.currentTimeMillis();
         RouteRecommendAiResponse aiResponse = aiService.recommendRoute(aiRequest);
-        long aiTimeMs = System.currentTimeMillis() - aiStart;
 
-        long validateStart = System.currentTimeMillis();
         validateAiResponse(aiRequest, aiResponse, conditionMap);
-        long validateTimeMs = System.currentTimeMillis() - validateStart;
 
-        long applyStart = System.currentTimeMillis();
         applyRecommendedOrder(nodes, aiResponse);
-        long applyTimeMs = System.currentTimeMillis() - applyStart;
 
-        long finalEdgeLoadStart = System.currentTimeMillis();
         List<Edge> finalEdges = edgeService.getEdgesByScheduleId(scheduleId);
-        long finalEdgeLoadTimeMs = System.currentTimeMillis() - finalEdgeLoadStart;
-
-        long totalTimeMs = System.currentTimeMillis() - totalStart;
-
-        log.info("""
-                        auto arrange performance:
-                        scheduleId={}
-                        nodeCount={}
-                        beforeUnscheduledNodeCount={}
-                        newlyPlacedNodeCount={}
-                        edgeCandidateCount={}
-                        existingEdgeCount={}
-                        createdEdgeCount={}
-                        routeCacheHitCount={}
-                        routeCacheMissCount={}
-                        kakaoApiCallCount={}
-                        loadTimeMs={}
-                        conditionTimeMs={}
-                        placeTimeMs={}
-                        edgeTimeMs={}
-                        edgeLoadTimeMs={}
-                        requestBuildTimeMs={}
-                        aiTimeMs={}
-                        validateTimeMs={}
-                        applyTimeMs={}
-                        finalEdgeLoadTimeMs={}
-                        totalTimeMs={}
-                        """,
-                scheduleId,
-                nodeCount,
-                beforeUnscheduledNodeCount,
-                newlyPlacedNodes.size(),
-                edgeResult.edgeCandidateCount(),
-                edgeResult.existingEdgeCount(),
-                edgeResult.createdEdgeCount(),
-                edgeResult.routeCacheHitCount(),
-                edgeResult.routeCacheMissCount(),
-                edgeResult.kakaoApiCallCount(),
-                loadTimeMs,
-                conditionTimeMs,
-                placeTimeMs,
-                edgeTimeMs,
-                edgeLoadTimeMs,
-                requestBuildTimeMs,
-                aiTimeMs,
-                validateTimeMs,
-                applyTimeMs,
-                finalEdgeLoadTimeMs,
-                totalTimeMs
-        );
 
         return ScheduleDetailResponse.from(schedule, finalEdges);
     }
