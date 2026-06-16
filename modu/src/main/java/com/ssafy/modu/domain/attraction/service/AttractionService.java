@@ -96,17 +96,20 @@ public class AttractionService {
                 .toList();
 
         /*
-            선택한 카테고리가 있으면 해당 카테고리 정보만 응답에 포함한다.
+            검색 결과는 선택한 카테고리 조건을 기준으로 필터링한다.
+
+            다만, 검색 결과에 포함된 관광지의 accessibilityInfos는
+            선택한 카테고리만 내려주지 않고, 해당 관광지가 가진 모든 AVAILABLE 무장애 정보를 제공한다.
 
             예:
-            visual=true & hearing=true
-            -> 응답 accessibilityInfos에도 VISUAL, HEARING만 포함
-            -> PHYSICAL 정보는 목록 응답에서 제외
+            visual=true
+            -> VISUAL 조건을 만족하는 관광지만 검색 결과에 포함
+            -> 응답 accessibilityInfos에는 VISUAL뿐 아니라 PHYSICAL, HEARING, INFANT 등
+               해당 관광지가 가진 모든 AVAILABLE 정보 포함
          */
         Map<Long, List<AttractionAccessibilityResponse>> accessibilityMap =
                 accessibilityInfoRepository.findByAttraction_IdIn(attractionIds).stream()
                         .filter(info -> info.getStatus() == AccessibilityStatus.AVAILABLE)
-                        .filter(info -> categories.isEmpty() || categories.contains(info.getCategory()))
                         .collect(Collectors.groupingBy(
                                 info -> info.getAttraction().getId(),
                                 Collectors.collectingAndThen(
