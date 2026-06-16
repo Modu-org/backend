@@ -3,6 +3,7 @@ package com.ssafy.modu.domain.aicommand.tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ssafy.modu.domain.aicommand.dto.tool.ToolExecutionContext;
 import com.ssafy.modu.domain.aicommand.dto.tool.ToolExecutionResult;
+import com.ssafy.modu.domain.aicommand.tool.core.enums.AiCommandScope;
 import com.ssafy.modu.domain.node.dto.request.NodeArrangementRequest;
 import com.ssafy.modu.domain.node.entity.Node;
 import com.ssafy.modu.domain.node.service.NodeService;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -105,6 +107,10 @@ public class RearrangeNodesToolHandler implements ScheduleToolHandler {
                 .result(previewResult)
                 .schedule(schedule)
                 .build();
+    }
+    @Override
+    public Set<AiCommandScope> getScopes() {
+        return Set.of(AiCommandScope.SCHEDULE_SCOPED);
     }
 
     private Node findSourceNode(List<Node> nodes, JsonNode arguments) {
