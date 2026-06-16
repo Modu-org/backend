@@ -13,7 +13,6 @@ import com.ssafy.modu.external.ai.dto.response.RouteRecommendAiResponse;
 import com.ssafy.modu.global.exception.BusinessException;
 import com.ssafy.modu.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,7 +21,6 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RouteRecommendService {
@@ -60,9 +58,8 @@ public class RouteRecommendService {
         // start/end 조건 노드만 날짜에 고정하고, 나머지 노드는 기존 날짜를 무시한 뒤 다시 배정한다.
         List<Node> arrangedNodes = placeUnscheduledNodes(schedule, nodes, conditionMap);
 
-        for (Node node : arrangedNodes) {
-            edgeService.createEdgesForPlacedNode(node);
-        }
+        // 기존 Edge는 재사용하고, 없는 Edge만 날짜 단위로 일괄 생성한다.
+        edgeService.createMissingEdgesForNewlyPlacedNodes(arrangedNodes);
 
         List<Edge> edges = edgeService.getEdgesByScheduleId(scheduleId);
 
