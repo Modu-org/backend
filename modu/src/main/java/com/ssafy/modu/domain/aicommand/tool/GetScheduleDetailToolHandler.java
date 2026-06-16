@@ -57,7 +57,8 @@ public class GetScheduleDetailToolHandler implements ScheduleToolHandler {
     @Override
     public Set<AiCommandScope> getScopes() {
         return Set.of(
-                AiCommandScope.SCHEDULE_SCOPED
+                AiCommandScope.SCHEDULE_SCOPED,
+                AiCommandScope.SCHEDULE_WORKFLOW
         );
     }
 }
