@@ -82,6 +82,9 @@ public class ScheduleService {
     @Transactional
     public void deleteSchedule(Long userId, Long scheduleId) {
         Schedule schedule = getSchedule(userId, scheduleId);
+
+        edgeService.deleteEdgesByScheduleId(scheduleId);
+
         scheduleRepository.delete(schedule);
     }
 

@@ -19,7 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.stream.Collectors;]
+
 @Service
 @RequiredArgsConstructor
 public class RouteRecommendService {
@@ -33,8 +34,8 @@ public class RouteRecommendService {
      *
      * 흐름:
      * 1. 스케줄과 노드 조회
-     * 2. 미배정 노드가 있으면 날짜에 자동 배치
-     * 3. 같은 날짜 노드들 사이 Edge 생성
+     * 2. start/end 조건 노드만 해당 날짜에 고정하고 나머지 노드는 전체 일정 기간에 다시 자동 배치
+     * 3. 같은 날짜 노드들 사이 필요한 Edge를 준비한다. 기존 Edge가 있으면 재사용하고, 없으면 새로 생성한다.
      * 4. AI 요청 생성
      * 5. AI 응답 검증
      * 6. 추천된 방문 순서 DB 반영
@@ -113,6 +114,8 @@ public class RouteRecommendService {
                 .map(Node::getId)
                 .collect(Collectors.toSet());
 
+        Set<Long> fixedNodeIds = new HashSet<>();
+
         for (AutoArrangeRequest.DayCondition condition : conditionMap.values()) {
             LocalDate date = condition.getDate();
 
@@ -137,45 +140,58 @@ public class RouteRecommendService {
             if (startNodeId != null && startNodeId.equals(endNodeId)) {
                 throw new BusinessException(ErrorCode.INVALID_ROUTE_RECOMMENDATION_REQUEST);
             }
+
+            validateFixedNodeNotDuplicated(fixedNodeIds, startNodeId);
+            validateFixedNodeNotDuplicated(fixedNodeIds, endNodeId);
         }
     }
 
     /**
-     * 아직 날짜가 없는 노드를 스케줄 기간 안의 날짜에 자동 배치한다.
+     * 같은 노드가 여러 날짜의 start/end 조건으로 중복 지정되면 안 된다.
+     */
+    private void validateFixedNodeNotDuplicated(
+            Set<Long> fixedNodeIds,
+            Long nodeId
+    ) {
+        if (nodeId == null) {
+            return;
+        }
+
+        if (!fixedNodeIds.add(nodeId)) {
+            throw new BusinessException(ErrorCode.INVALID_ROUTE_RECOMMENDATION_REQUEST);
+        }
+    }
+
+    /**
+     * 자동배치 대상 노드를 스케줄 기간 안의 날짜에 배치한다.
      *
      * 배치 기준:
-     * 1. startNodeId/endNodeId로 지정된 노드는 해당 날짜에 우선 배치
-     * 2. 나머지 미배정 노드는 가까운 날짜 그룹에 배치
-     * 3. 특정 날짜에 너무 몰리지 않도록 최대 노드 수 기준을 둔다
+     * 1. startNodeId/endNodeId로 지정된 노드만 해당 날짜에 우선 고정한다.
+     * 2. 나머지 노드는 기존 visitDate를 무시하고 전부 미배정 상태처럼 다시 배치한다.
+     * 3. 특정 날짜에 너무 몰리지 않도록 최대 노드 수 기준을 둔다.
      */
     private List<Node> placeUnscheduledNodes(
             Schedule schedule,
             List<Node> nodes,
             Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap
     ) {
-        List<Node> placedNodes = new ArrayList<>();
+        List<Node> arrangedNodes = new ArrayList<>();
 
         List<LocalDate> scheduleDates = getScheduleDates(schedule);
 
         Map<Long, Node> nodeMap = nodes.stream()
                 .collect(Collectors.toMap(Node::getId, Function.identity()));
 
+        Map<Long, LocalDate> fixedDateByNodeId = buildFixedDateByNodeId(conditionMap);
+
         /*
          * 날짜별 노드 목록.
-         * 기존에 visitDate가 있는 노드를 먼저 넣어둔다.
+         * 기존 visitDate는 자동배치 기준에서 제외하고, start/end 조건 노드만 먼저 넣어둔다.
          */
         Map<LocalDate, List<Node>> nodesByDate = new HashMap<>();
 
         for (LocalDate date : scheduleDates) {
             nodesByDate.put(date, new ArrayList<>());
-        }
-
-        for (Node node : nodes) {
-            if (node.getVisitDate() != null) {
-                nodesByDate
-                        .computeIfAbsent(node.getVisitDate(), key -> new ArrayList<>())
-                        .add(node);
-            }
         }
 
         int maxNodesPerDay = calculateMaxNodesPerDay(
@@ -184,33 +200,23 @@ public class RouteRecommendService {
         );
 
         /*
-         * 1. 시작/종료 노드 조건이 있는 미배정 노드를 먼저 해당 날짜에 배치한다.
+         * 1. 시작/종료 노드 조건이 있는 노드를 기존 날짜와 관계없이 해당 날짜에 고정한다.
          */
-        for (AutoArrangeRequest.DayCondition condition : conditionMap.values()) {
-            LocalDate targetDate = condition.getDate();
-
-            placeFixedNodeIfNeeded(
+        for (Map.Entry<Long, LocalDate> entry : fixedDateByNodeId.entrySet()) {
+            placeFixedNode(
                     nodeMap,
                     nodesByDate,
-                    placedNodes,
-                    condition.getStartNodeId(),
-                    targetDate
-            );
-
-            placeFixedNodeIfNeeded(
-                    nodeMap,
-                    nodesByDate,
-                    placedNodes,
-                    condition.getEndNodeId(),
-                    targetDate
+                    arrangedNodes,
+                    entry.getKey(),
+                    entry.getValue()
             );
         }
 
         /*
-         * 2. 나머지 미배정 노드는 가까운 날짜 그룹에 배치한다.
+         * 2. start/end로 고정되지 않은 나머지 노드는 전부 미배정 상태처럼 다시 날짜를 배정한다.
          */
         List<Node> unscheduledNodes = nodes.stream()
-                .filter(node -> node.getVisitDate() == null)
+                .filter(node -> !fixedDateByNodeId.containsKey(node.getId()))
                 .sorted(Comparator.comparing(Node::getId))
                 .toList();
 
@@ -227,11 +233,12 @@ public class RouteRecommendService {
             node.updateVisitInfo(nextVisitOrder, targetDate);
 
             nodesByDate.get(targetDate).add(node);
-            placedNodes.add(node);
+            arrangedNodes.add(node);
         }
 
-        return placedNodes;
+        return arrangedNodes;
     }
+
     /**
      * 미배정 노드를 어느 날짜에 배치할지 결정한다.
      *
@@ -375,12 +382,28 @@ public class RouteRecommendService {
     }
 
     /**
-     * startNodeId/endNodeId로 지정된 노드가 미배정 상태라면 해당 날짜에 배치한다.
+     * 날짜별 startNodeId/endNodeId 조건을 nodeId -> 고정 날짜 Map으로 변환한다.
      */
-    private void placeFixedNodeIfNeeded(
-            Map<Long, Node> nodeMap,
-            Map<LocalDate, List<Node>> nodesByDate,
-            List<Node> placedNodes,
+    private Map<Long, LocalDate> buildFixedDateByNodeId(
+            Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap
+    ) {
+        Map<Long, LocalDate> fixedDateByNodeId = new LinkedHashMap<>();
+
+        for (AutoArrangeRequest.DayCondition condition : conditionMap.values()) {
+            LocalDate targetDate = condition.getDate();
+
+            addFixedDateIfPresent(fixedDateByNodeId, condition.getStartNodeId(), targetDate);
+            addFixedDateIfPresent(fixedDateByNodeId, condition.getEndNodeId(), targetDate);
+        }
+
+        return fixedDateByNodeId;
+    }
+
+    /**
+     * start/end 조건이 있는 노드를 고정 날짜 Map에 추가한다.
+     */
+    private void addFixedDateIfPresent(
+            Map<Long, LocalDate> fixedDateByNodeId,
             Long nodeId,
             LocalDate targetDate
     ) {
@@ -388,25 +411,31 @@ public class RouteRecommendService {
             return;
         }
 
+        fixedDateByNodeId.put(nodeId, targetDate);
+    }
+
+    /**
+     * startNodeId/endNodeId로 지정된 노드를 기존 날짜와 관계없이 해당 날짜에 고정한다.
+     */
+    private void placeFixedNode(
+            Map<Long, Node> nodeMap,
+            Map<LocalDate, List<Node>> nodesByDate,
+            List<Node> arrangedNodes,
+            Long nodeId,
+            LocalDate targetDate
+    ) {
         Node node = nodeMap.get(nodeId);
 
         if (node == null) {
             throw new BusinessException(ErrorCode.INVALID_ROUTE_RECOMMENDATION_REQUEST);
         }
 
-        // 이미 다른 날짜에 배치된 노드를 강제로 옮기지는 않는다.
-        if (node.getVisitDate() != null && !node.getVisitDate().equals(targetDate)) {
-            throw new BusinessException(ErrorCode.INVALID_ROUTE_RECOMMENDATION_REQUEST);
-        }
+        int nextVisitOrder = nodesByDate.get(targetDate).size() + 1;
 
-        if (node.getVisitDate() == null) {
-            int nextVisitOrder = nodesByDate.get(targetDate).size() + 1;
+        node.updateVisitInfo(nextVisitOrder, targetDate);
 
-            node.updateVisitInfo(nextVisitOrder, targetDate);
-
-            nodesByDate.get(targetDate).add(node);
-            placedNodes.add(node);
-        }
+        nodesByDate.get(targetDate).add(node);
+        arrangedNodes.add(node);
     }
 
     /**

@@ -111,7 +111,12 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/regions/**"
                         ).permitAll()
-
+                        .requestMatchers(
+                                "/api/regions/**"
+                        ).permitAll()
+                        .requestMatchers(
+                                "/api/attractions/**"
+                        ).permitAll()
                         // 위에서 허용한 경로를 제외한 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
@@ -186,7 +191,11 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOrigins(List.of(
+                "https://i-eum.onrender.com",
+                "http://localhost:5173",
+                "http://localhost:5174"
+        ));
 
         configuration.setAllowedMethods(List.of(
                 "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"

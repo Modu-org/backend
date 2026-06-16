@@ -76,11 +76,8 @@ class ScheduleServiceTest {
         // then
         assertThat(response.getScheduleId()).isEqualTo(10L);
         assertThat(response.getTitle()).isEqualTo("대구 1박 2일 여행");
-        assertThat(response.getRegion()).isEqualTo("대구광역시");
         assertThat(response.getStartDate()).isEqualTo(LocalDate.of(2026, 5, 10));
         assertThat(response.getEndDate()).isEqualTo(LocalDate.of(2026, 5, 11));
-        assertThat(response.getPeopleCount()).isEqualTo(3);
-        assertThat(response.getBudget()).isEqualTo(150000);
 
         verify(scheduleRepository).save(any(Schedule.class));
     }
@@ -287,8 +284,6 @@ class ScheduleServiceTest {
         assertThat(response.getTitle()).isEqualTo("대구 가족 여행");
         assertThat(response.getStartDate()).isEqualTo(LocalDate.of(2026, 5, 10));
         assertThat(response.getEndDate()).isEqualTo(LocalDate.of(2026, 5, 12));
-        assertThat(response.getPeopleCount()).isEqualTo(4);
-        assertThat(response.getBudget()).isEqualTo(200000);
     }
 
     @Test
@@ -344,11 +339,8 @@ class ScheduleServiceTest {
         Schedule schedule = Schedule.create(
                 user,
                 title,
-                "대구광역시",
                 LocalDate.of(2026, 5, 10),
-                LocalDate.of(2026, 5, 11),
-                3,
-                150000
+                LocalDate.of(2026, 5, 11)
         );
 
         ReflectionTestUtils.setField(schedule, "id", scheduleId);
