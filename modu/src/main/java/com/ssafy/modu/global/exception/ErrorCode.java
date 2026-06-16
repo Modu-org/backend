@@ -54,7 +54,8 @@ public enum ErrorCode {
     UNSUPPORTED_AI_TOOL(HttpStatus.BAD_REQUEST, 950, "지원하지 않는 AI 도구입니다."),
     INVALID_AI_TOOL_ARGUMENTS(HttpStatus.BAD_REQUEST, 951, "AI 도구 호출 인자가 올바르지 않습니다."),
     UNSUPPORTED_AI_TOOL_OPERATION(HttpStatus.BAD_REQUEST, 952, "지원하지 않는 AI 도구 작업입니다."),
-    AI_TOOL_CALL_LIMIT_EXCEEDED(HttpStatus.INTERNAL_SERVER_ERROR, 953, "AI 도구 호출 횟수를 초과했습니다.");
+    AI_TOOL_CALL_LIMIT_EXCEEDED(HttpStatus.INTERNAL_SERVER_ERROR, 953, "AI 도구 호출 횟수를 초과했습니다."),
+    INVALID_AI_SCHEDULE_RESPONSE(HttpStatus.BAD_REQUEST, 954, "AI 일정 처리 결과를 해석할 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final int status;
