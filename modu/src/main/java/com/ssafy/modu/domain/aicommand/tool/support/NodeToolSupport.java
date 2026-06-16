@@ -1,4 +1,4 @@
-package com.ssafy.modu.domain.aicommand.tool;
+package com.ssafy.modu.domain.aicommand.tool.support;
 
 import com.ssafy.modu.domain.node.entity.Node;
 import com.ssafy.modu.domain.node.repository.NodeRepository;
