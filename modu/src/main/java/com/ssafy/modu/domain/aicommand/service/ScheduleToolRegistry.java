@@ -1,6 +1,6 @@
 package com.ssafy.modu.domain.aicommand.service;
 
-import com.ssafy.modu.domain.aicommand.tool.ScheduleToolHandler;
+import com.ssafy.modu.domain.aicommand.tool.schedule.ScheduleToolHandler;
 import com.ssafy.modu.domain.aicommand.tool.core.enums.AiCommandScope;
 import com.ssafy.modu.global.exception.BusinessException;
 import com.ssafy.modu.global.exception.ErrorCode;

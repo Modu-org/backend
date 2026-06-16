@@ -3,7 +3,7 @@ package com.ssafy.modu.domain.aicommand.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ssafy.modu.domain.aicommand.dto.tool.ToolExecutionContext;
 import com.ssafy.modu.domain.aicommand.dto.tool.ToolExecutionResult;
-import com.ssafy.modu.domain.aicommand.tool.ScheduleToolHandler;
+import com.ssafy.modu.domain.aicommand.tool.schedule.ScheduleToolHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

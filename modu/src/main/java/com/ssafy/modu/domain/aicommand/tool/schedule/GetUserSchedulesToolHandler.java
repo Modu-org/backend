@@ -1,10 +1,10 @@
-package com.ssafy.modu.domain.aicommand.tool;
+package com.ssafy.modu.domain.aicommand.tool.schedule;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ssafy.modu.domain.aicommand.dto.tool.ToolExecutionContext;
 import com.ssafy.modu.domain.aicommand.dto.tool.ToolExecutionResult;
+import com.ssafy.modu.domain.aicommand.tool.support.ScheduleToolSupport;
 import com.ssafy.modu.domain.aicommand.tool.core.enums.AiCommandScope;
-import com.ssafy.modu.domain.schedule.dto.response.ScheduleSummaryResponse;
 import com.ssafy.modu.domain.schedule.service.ScheduleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

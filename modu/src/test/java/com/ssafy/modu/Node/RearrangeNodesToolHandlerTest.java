@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssafy.modu.domain.aicommand.dto.tool.ToolExecutionContext;
 import com.ssafy.modu.domain.aicommand.dto.tool.ToolExecutionResult;
-import com.ssafy.modu.domain.aicommand.tool.RearrangeNodesToolHandler;
+import com.ssafy.modu.domain.aicommand.tool.node.RearrangeNodesToolHandler;
 import com.ssafy.modu.domain.attraction.entity.Attraction;
 import com.ssafy.modu.domain.attraction.repository.AttractionRepository;
 import com.ssafy.modu.domain.node.entity.Node;
