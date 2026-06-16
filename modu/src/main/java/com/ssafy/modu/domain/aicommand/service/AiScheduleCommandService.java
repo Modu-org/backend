@@ -16,6 +16,7 @@ import com.ssafy.modu.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +39,6 @@ public class AiScheduleCommandService {
      * 예:
      * - 3번이랑 4번 바꿔줘
      * - 3번을 제일 먼저 보내줘
-     * - 이 관광지를 현재 일정에 추가해줘
      * - 미배치된 장소들 자동 배치해줘
      */
     @Transactional
@@ -47,7 +47,7 @@ public class AiScheduleCommandService {
             Long scheduleId,
             AiScheduleCommandRequest request
     ) {
-        return handleCommand(
+        return handleCommandSafely(
                 userId,
                 scheduleId,
                 request,
@@ -60,19 +60,44 @@ public class AiScheduleCommandService {
      * 예:
      * - 서울1 일정에 이 관광지 추가해줘
      * - 6월 20일부터 22일까지 새 일정 만들어서 이 관광지 추가해줘
-     * - 서울1 일정에 추가하고 자동 배치해줘
+     * - 6월 20일이 포함된 일정에 이 관광지 추가해줘
      */
     @Transactional
     public AiScheduleCommandResponse handleScheduleWorkflowCommand(
             Long userId,
             AiScheduleCommandRequest request
     ) {
-        return handleCommand(
+        return handleCommandSafely(
                 userId,
                 null,
                 request,
                 AiCommandScope.SCHEDULE_WORKFLOW
         );
+    }
+
+    private AiScheduleCommandResponse handleCommandSafely(
+            Long userId,
+            Long scheduleId,
+            AiScheduleCommandRequest request,
+            AiCommandScope scope
+    ) {
+        try {
+            return handleCommand(userId, scheduleId, request, scope);
+        } catch (BusinessException e) {
+            markRollbackOnlySafely();
+
+            return AiScheduleCommandResponse.of(
+                    toUserFriendlyMessage(e.getErrorCode(), scope),
+                    null
+            );
+        } catch (Exception e) {
+            markRollbackOnlySafely();
+
+            return AiScheduleCommandResponse.of(
+                    "요청을 처리하는 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.",
+                    null
+            );
+        }
     }
 
     private AiScheduleCommandResponse handleCommand(
@@ -105,17 +130,13 @@ public class AiScheduleCommandService {
         List<Map<String, Object>> tools = scheduleToolRegistry.getDefinitions(scope);
 
         ScheduleDetailResponse latestSchedule = null;
-        String latestMessage;
 
         for (int round = 0; round < MAX_TOOL_CALL_ROUND; round++) {
             ToolChatResponse aiResponse = gmsOpenAIClient.chatWithTools(messages, tools);
+            validateAiResponse(aiResponse);
 
             if (!aiResponse.hasToolCalls()) {
-                latestMessage = aiResponse.getContent();
-
-                String assistantMessage = latestMessage == null || latestMessage.isBlank()
-                        ? "일정 명령 처리가 완료되었습니다."
-                        : latestMessage;
+                String assistantMessage = normalizeAssistantMessage(aiResponse.getContent());
 
                 return AiScheduleCommandResponse.of(
                         assistantMessage,
@@ -123,12 +144,16 @@ public class AiScheduleCommandService {
                 );
             }
 
+            validateToolCallResponse(aiResponse);
+
             messages.add(objectMapper.convertValue(
                     aiResponse.getAssistantMessage(),
                     Map.class
             ));
 
             for (ToolCall toolCall : aiResponse.getToolCalls()) {
+                validateToolCall(toolCall);
+
                 ToolExecutionResult toolResult = scheduleToolExecutor.execute(
                         context,
                         toolCall.getName(),
@@ -150,6 +175,39 @@ public class AiScheduleCommandService {
         throw new BusinessException(ErrorCode.AI_TOOL_CALL_LIMIT_EXCEEDED);
     }
 
+    private void validateAiResponse(ToolChatResponse aiResponse) {
+        if (aiResponse == null) {
+            throw new BusinessException(ErrorCode.INVALID_AI_SCHEDULE_RESPONSE);
+        }
+    }
+
+    private void validateToolCallResponse(ToolChatResponse aiResponse) {
+        if (aiResponse.getAssistantMessage() == null
+                || aiResponse.getToolCalls() == null
+                || aiResponse.getToolCalls().isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_AI_SCHEDULE_RESPONSE);
+        }
+    }
+
+    private void validateToolCall(ToolCall toolCall) {
+        if (toolCall == null
+                || toolCall.getId() == null
+                || toolCall.getId().isBlank()
+                || toolCall.getName() == null
+                || toolCall.getName().isBlank()
+                || toolCall.getArguments() == null) {
+            throw new BusinessException(ErrorCode.INVALID_AI_SCHEDULE_RESPONSE);
+        }
+    }
+
+    private String normalizeAssistantMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return "일정 명령 처리가 완료되었습니다.";
+        }
+
+        return message;
+    }
+
     private String buildDeveloperPrompt(AiCommandScope scope) {
         return switch (scope) {
             case SCHEDULE_SCOPED -> buildScheduleScopedPrompt();
@@ -165,6 +223,7 @@ public class AiScheduleCommandService {
                 Tool 호출 결과에 포함된 ID만 다음 Tool 호출에 사용하라.
                 AI가 직접 DB를 수정하는 것이 아니라, 반드시 제공된 tool을 통해서만 작업을 수행해야 한다.
                 최종 응답은 한국어로 짧게 작성한다.
+                사용자가 해야 할 다음 행동이 있으면 한 문장으로 자연스럽게 안내한다.
                 """;
     }
 
@@ -197,35 +256,53 @@ public class AiScheduleCommandService {
     private String buildScheduleWorkflowPrompt() {
         return buildCommonPrompt() + """
             
-            현재 명령은 관광지 목록 또는 관광지 상세 화면에서 들어올 수 있다.
+            현재 명령은 홈, 관광지 목록, 관광지 상세 화면에서 들어올 수 있다.
             scheduleId가 없다.
             attractionId는 프론트가 현재 사용자가 보고 있거나 선택한 관광지를 확정해서 서버 context로 전달한다.
             
             [가능한 작업]
             - 사용자의 기존 일정 목록 조회
-            - 일정 이름으로 기존 일정 찾기
+            - 일정 이름, 시작일, 종료일, 특정 날짜 포함 여부로 기존 일정 찾기
             - 새 일정 생성
             - 선택된 관광지를 기존 일정 또는 새 일정에 미배치 노드로 추가
             - 관광지를 추가한 일정 상세 조회
             
-            [작업 규칙]
+            [기존 일정 찾기 규칙]
             - 기존 일정에 추가하려면 find_schedule로 일정을 먼저 찾는다.
-            - 사용자가 일정명을 명확히 말하지 않았다면 get_user_schedules로 후보를 확인할 수 있다.
+            - 사용자가 일정 이름을 말하면 find_schedule의 title을 사용한다.
+            - 사용자가 일정 시작일을 말하면 find_schedule의 startDate를 사용한다.
+            - 사용자가 일정 종료일을 말하면 find_schedule의 endDate를 사용한다.
+            - 사용자가 "6월 20일 일정", "그날 일정", "해당 날짜 일정"처럼 특정 날짜를 말하면 find_schedule의 containsDate를 사용한다.
+            - 사용자가 "6월 20일부터 6월 22일까지 일정"처럼 기간을 말하면 find_schedule의 startDate와 endDate를 함께 사용한다.
+            - 일정 이름과 날짜 조건을 함께 말하면 find_schedule에 가능한 조건을 모두 넣어 더 정확히 찾는다.
+            - 일정 이름, 시작일, 종료일, 포함 날짜를 모두 알 수 없으면 get_user_schedules로 후보를 확인하고 사용자에게 선택을 요청한다.
+            - find_schedule 결과가 여러 개이면 바로 추가하지 말고 사용자에게 어느 일정에 추가할지 선택을 요청한다.
+            - find_schedule 결과가 없으면 바로 새 일정을 만들지 말고, 기존 일정에 추가할지 새 일정을 만들지 사용자에게 다시 확인한다.
+            
+            [새 일정 생성 규칙]
             - 새 일정을 만들어 추가하려면 create_schedule을 먼저 호출한다.
             - 새 일정 생성에는 사용자가 명시한 title, startDate, endDate가 모두 필요하다.
+            - 사용자가 일정 이름을 말하지 않았다면 title을 임의로 만들지 말고 사용자에게 일정 이름을 물어봐라.
+            - 사용자가 시작일 또는 종료일을 말하지 않았다면 startDate/endDate를 임의로 만들지 말고 사용자에게 여행 날짜를 물어봐라.
             - 정보가 부족하면 tool을 호출하지 말고 사용자에게 필요한 정보를 물어봐라.
+            
+            [관광지 추가 규칙]
             - AI가 임의로 attractionId를 만들지 마라.
             - add_attraction_to_schedule에는 반드시 context attractionId만 사용하라.
+            - 기존 일정 또는 새 일정이 확정된 뒤에만 add_attraction_to_schedule을 호출한다.
             - 관광지를 추가한 뒤 최종 일정 상태가 필요하면 get_schedule_detail을 호출한다.
             
             [금지]
             - 이 scope에서는 노드 순서 변경을 하지 마라.
             - 이 scope에서는 미배치 노드 자동 배치를 하지 마라.
             - get_day_nodes, find_node, rearrange_nodes, auto_arrange_unscheduled_nodes를 호출하지 마라.
+            - 사용자가 자동 배치를 요청하더라도 이 scope에서는 실행하지 말고, 일정 상세 화면에서 실행할 수 있다고 안내한다.
             
             [주의]
             - 일정명이 여러 개 매칭되면 바로 추가하지 말고 사용자에게 선택을 요청하라.
+            - 날짜 조건으로 여러 일정이 매칭되어도 바로 추가하지 말고 사용자에게 선택을 요청하라.
             - 사용자가 "이 관광지", "여기", "이 장소"라고 말하면 context의 attractionId를 의미한다.
+            - 사용자가 "이 일정", "거기 일정"처럼 지시어만 말하고 일정명이나 날짜 조건을 말하지 않으면 get_user_schedules로 후보를 확인하거나 사용자에게 구체적인 일정을 물어봐라.
             """;
     }
 
@@ -256,6 +333,36 @@ public class AiScheduleCommandService {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {
             throw new BusinessException(ErrorCode.AI_API_ERROR);
+        }
+    }
+
+    private String toUserFriendlyMessage(ErrorCode errorCode, AiCommandScope scope) {
+        return switch (errorCode) {
+            case INVALID_AI_TOOL_ARGUMENTS -> invalidToolArgumentsMessage(scope);
+            case UNSUPPORTED_AI_TOOL -> "요청하신 작업은 지금 화면에서는 처리할 수 없어요.";
+            case UNSUPPORTED_AI_TOOL_OPERATION -> "지원하지 않는 일정 변경 방식이에요. 순서 변경이나 위치 이동 방식으로 다시 말씀해 주세요.";
+            case INVALID_AI_SCHEDULE_RESPONSE -> "일정 처리 결과를 확인하는 중 문제가 생겼어요. 다시 한 번 요청해 주세요.";
+            case AI_TOOL_CALL_LIMIT_EXCEEDED -> "요청을 처리하는 데 시간이 조금 오래 걸리고 있어요. 명령을 조금 더 짧게 다시 말씀해 주세요.";
+            case SCHEDULE_NOT_FOUND -> "해당 일정을 찾지 못했어요. 일정 이름이나 날짜를 다시 확인해 주세요.";
+            case NODE_NOT_FOUND -> "요청하신 장소를 일정에서 찾지 못했어요. 장소 이름이나 순서를 다시 확인해 주세요.";
+            case INVALID_NODE_VISIT_DATE -> "선택한 날짜에 맞지 않는 장소 이동 요청이에요. 일정 날짜를 다시 확인해 주세요.";
+            case AI_API_ERROR -> "AI 응답을 처리하는 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
+            default -> "요청을 처리하지 못했어요. 내용을 조금 더 구체적으로 다시 말씀해 주세요.";
+        };
+    }
+
+    private String invalidToolArgumentsMessage(AiCommandScope scope) {
+        if (scope == AiCommandScope.SCHEDULE_WORKFLOW) {
+            return "일정에 추가하려면 관광지와 대상 일정 정보가 필요해요. 일정 이름이나 여행 날짜를 함께 말씀해 주세요.";
+        }
+
+        return "일정 변경에 필요한 정보가 부족해요. 변경할 장소의 순서나 날짜를 다시 말씀해 주세요.";
+    }
+
+    private void markRollbackOnlySafely() {
+        try {
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+        } catch (Exception ignored) {
         }
     }
 }
