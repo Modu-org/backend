@@ -17,10 +17,10 @@ public interface EdgeRepository extends JpaRepository<Edge, Long> {
             Long toNodeId
     );
 
-    Optional<Edge> findByScheduleIdAndFromNodeIdAndToNodeId(
+    List<Edge> findByScheduleIdAndFromNodeIdInAndToNodeIdIn(
             Long scheduleId,
-            Long fromNodeId,
-            Long toNodeId
+            Collection<Long> fromNodeIds,
+            Collection<Long> toNodeIds
     );
 
     List<Edge> findByScheduleId(Long scheduleId);
