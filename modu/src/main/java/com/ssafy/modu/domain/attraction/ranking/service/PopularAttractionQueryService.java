@@ -23,11 +23,13 @@ public class PopularAttractionQueryService {
     private final AttractionRepository attractionRepository;
 
     public List<PopularAttractionResponse> getPopularAttractions(String regionCode, int limit) {
+        int safeLimit = Math.min(Math.max(limit, 1), 10);
+
         String key = "ranking:region:" + regionCode + ":attractions";
 
         Set<ZSetOperations.TypedTuple<String>> tuples =
                 redisTemplate.opsForZSet()
-                        .reverseRangeWithScores(key, 0, limit - 1);
+                        .reverseRangeWithScores(key, 0, safeLimit - 1);
 
         if (tuples == null || tuples.isEmpty()) {
             return List.of();
