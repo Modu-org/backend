@@ -258,13 +258,22 @@ public class AiScheduleCommandService {
             
             현재 명령은 홈, 관광지 목록, 관광지 상세 화면에서 들어올 수 있다.
             scheduleId가 없다.
-            attractionId는 프론트가 현재 사용자가 보고 있거나 선택한 관광지를 확정해서 서버 context로 전달한다.
+            이 scope는 "이미 선택되었거나 VoiceCommandRouter에서 단일 확정된 관광지"를 일정에 추가하는 workflow이다.
+            추가할 관광지는 서버 context의 attractionId로 전달된다.
+            
+            [요청 처리 방식]
+            - 현재 요청에서 제공된 context와 사용자 명령만으로 처리 가능한 작업만 수행한다.
+            - 필요한 정보가 부족하면 tool을 억지로 호출하지 말고, 사용자에게 필요한 정보를 질문하고 종료한다.
+            - 프론트의 화면 이동, 후보 선택, 다음 음성 입력 유도는 이 service의 책임이 아니다.
+            - 이 service는 현재 요청에 대한 응답 메시지와 필요한 경우 최신 schedule만 반환한다.
+            - 이전 요청의 context를 기억한다고 가정하지 마라.
+            - 이어지는 요청에서도 필요한 attractionId, scheduleId, date 등은 프론트 또는 Router가 다시 전달해야 한다.
             
             [가능한 작업]
             - 사용자의 기존 일정 목록 조회
             - 일정 이름, 시작일, 종료일, 특정 날짜 포함 여부로 기존 일정 찾기
             - 새 일정 생성
-            - 선택된 관광지를 기존 일정 또는 새 일정에 미배치 노드로 추가
+            - 선택된 단일 관광지를 기존 일정 또는 새 일정에 미배치 노드로 추가
             - 관광지를 추가한 일정 상세 조회
             
             [기존 일정 찾기 규칙]
@@ -287,8 +296,13 @@ public class AiScheduleCommandService {
             - 정보가 부족하면 tool을 호출하지 말고 사용자에게 필요한 정보를 물어봐라.
             
             [관광지 추가 규칙]
+            - 추가할 관광지는 서버 context의 attractionId로만 판단한다.
             - AI가 임의로 attractionId를 만들지 마라.
             - add_attraction_to_schedule에는 반드시 context attractionId만 사용하라.
+            - context attractionId가 없으면 add_attraction_to_schedule을 호출하지 마라.
+            - 사용자가 관광지 이름을 말했더라도 context attractionId가 없으면 관광지 ID를 추측하지 마라.
+            - 여러 관광지 후보 중 어떤 것을 추가할지 선택하는 작업은 VoiceCommandRouter 또는 프론트 flow에서 처리한다.
+            - 이 service에서는 후보 관광지를 비교하거나 선택하지 않는다.
             - 기존 일정 또는 새 일정이 확정된 뒤에만 add_attraction_to_schedule을 호출한다.
             - 관광지를 추가한 뒤 최종 일정 상태가 필요하면 get_schedule_detail을 호출한다.
             
@@ -303,6 +317,7 @@ public class AiScheduleCommandService {
             - 날짜 조건으로 여러 일정이 매칭되어도 바로 추가하지 말고 사용자에게 선택을 요청하라.
             - 사용자가 "이 관광지", "여기", "이 장소"라고 말하면 context의 attractionId를 의미한다.
             - 사용자가 "이 일정", "거기 일정"처럼 지시어만 말하고 일정명이나 날짜 조건을 말하지 않으면 get_user_schedules로 후보를 확인하거나 사용자에게 구체적인 일정을 물어봐라.
+            - 단, 이 service는 이전 턴의 관광지나 일정 정보를 기억하지 않는다. 필요한 정보가 현재 요청 context에 없으면 사용자에게 다시 요청하라.
             """;
     }
 
@@ -353,7 +368,7 @@ public class AiScheduleCommandService {
 
     private String invalidToolArgumentsMessage(AiCommandScope scope) {
         if (scope == AiCommandScope.SCHEDULE_WORKFLOW) {
-            return "일정에 추가하려면 관광지와 대상 일정 정보가 필요해요. 일정 이름이나 여행 날짜를 함께 말씀해 주세요.";
+            return "일정에 추가하려면 관광지와 대상 일정 정보가 필요해요. 관광지를 선택하고, 일정 이름이나 여행 날짜를 함께 말씀해 주세요.";
         }
 
         return "일정 변경에 필요한 정보가 부족해요. 변경할 장소의 순서나 날짜를 다시 말씀해 주세요.";
