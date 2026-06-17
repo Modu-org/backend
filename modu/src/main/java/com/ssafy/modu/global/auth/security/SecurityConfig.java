@@ -117,6 +117,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/attractions/**"
                         ).permitAll()
+                        .requestMatchers("/api/ai/voice-command").permitAll()
                         // 위에서 허용한 경로를 제외한 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
