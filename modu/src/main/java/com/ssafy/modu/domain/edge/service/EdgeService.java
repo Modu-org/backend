@@ -103,6 +103,42 @@ public class EdgeService {
         edgeRepository.deleteAllByNodeId(nodeId);
     }
 
+    @Transactional(readOnly = true)
+    public List<Edge> getActiveEdgesForSchedule(Schedule schedule) {
+        if (schedule == null || schedule.getId() == null || schedule.getNodes() == null) {
+            return List.of();
+        }
+
+        Map<LocalDate, List<Node>> nodesByDate = schedule.getNodes().stream()
+                .filter(node -> node.getVisitDate() != null)
+                .collect(Collectors.groupingBy(Node::getVisitDate));
+
+        Set<Long> fromNodeIds = new HashSet<>();
+        Set<Long> toNodeIds = new HashSet<>();
+
+        for (List<Node> nodes : nodesByDate.values()) {
+            List<Node> sortedNodes = nodes.stream()
+                    .sorted(Comparator.comparing(Node::getVisitOrder, Comparator.nullsLast(Integer::compareTo))
+                            .thenComparing(Node::getId))
+                    .toList();
+
+            for (int i = 0; i < sortedNodes.size() - 1; i++) {
+                fromNodeIds.add(sortedNodes.get(i).getId());
+                toNodeIds.add(sortedNodes.get(i + 1).getId());
+            }
+        }
+
+        if (fromNodeIds.isEmpty() || toNodeIds.isEmpty()) {
+            return List.of();
+        }
+
+        return edgeRepository.findByScheduleIdAndFromNodeIdInAndToNodeIdIn(
+                schedule.getId(),
+                fromNodeIds,
+                toNodeIds
+        );
+    }
+
     /**
      * 날짜 단위로 전체 노드를 조회한 뒤,
      * 기존 Edge와 관광지 경로 캐시를 일괄 조회해서 누락된 Edge만 생성한다.

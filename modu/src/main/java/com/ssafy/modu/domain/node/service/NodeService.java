@@ -128,6 +128,7 @@ public class NodeService {
         Set<Long> requestedNodeIds = new HashSet<>();
 
         List<Node> placedOrMovedNodes = new ArrayList<>();
+        List<Node> unplacedNodes = new ArrayList<>();
 
         for (NodeArrangementRequest.DayArrangement day : request.getDays()) {
             validateVisitDate(schedule, day.getDate());
@@ -161,34 +162,59 @@ public class NodeService {
                 LocalDate afterVisitDate = day.getDate();
 
                 boolean dateChanged = !Objects.equals(beforeVisitDate, afterVisitDate);
+                boolean orderChanged = !Objects.equals(node.getVisitOrder(), item.getVisitOrder());
+
+                /*
+                 * 날짜도 같고 순서도 같으면 실제 변경이 없으므로 스킵한다.
+                 * 불필요한 dirty checking, update 호출, Edge 작업 후보 등록을 줄이기 위함이다.
+                 */
+                if (!dateChanged && !orderChanged) {
+                    continue;
+                }
 
                 node.updateVisitInfo(
                         item.getVisitOrder(),
                         afterVisitDate
                 );
 
+                /*
+                 * Edge는 순서 변경만으로는 바뀌지 않는다.
+                 * 날짜가 바뀐 경우에만 Edge 보강/삭제 대상이 된다.
+                 */
                 if (dateChanged) {
-                    placedOrMovedNodes.add(node);
+                    if (afterVisitDate == null) {
+                        unplacedNodes.add(node);
+                    } else {
+                        placedOrMovedNodes.add(node);
+                    }
                 }
             }
         }
 
         /*
-         * 변경된 visitDate를 DB에 먼저 반영한다.
-         * 이후 EdgeService에서 같은 날짜 노드를 조회할 때 최신 날짜 기준으로 조회되도록 flush한다.
+         * 날짜 변경이 있는 경우에만 flush한다.
+         *
+         * 이유:
+         * - 같은 날짜 안에서 순서만 바뀐 경우 Edge 재생성이 필요 없다.
+         * - EdgeService가 같은 날짜 노드를 다시 조회할 때만 DB 반영이 먼저 필요하다.
          */
-        nodeRepository.flush();
+        if (!placedOrMovedNodes.isEmpty() || !unplacedNodes.isEmpty()) {
+            nodeRepository.flush();
 
-        for (Node node : placedOrMovedNodes) {
-            if (node.getVisitDate() == null) {
+            for (Node node : unplacedNodes) {
                 edgeService.deleteEdgesByNodeId(node.getId());
-            } else {
-                edgeService.rebuildEdgesForMovedNode(node);
             }
+
+            edgeService.createMissingEdgesForNewlyPlacedNodes(placedOrMovedNodes);
         }
 
-        List<Edge> edges = edgeService.getEdgesByScheduleId(scheduleId);
-        return ScheduleDetailResponse.from(schedule, edges);
+        /*
+         * 응답에는 전체 Edge가 아니라,
+         * 현재 방문 순서상 실제로 필요한 인접 Edge만 조회한다.
+         */
+        List<Edge> activeEdges = edgeService.getActiveEdgesForSchedule(schedule);
+
+        return ScheduleDetailResponse.from(schedule, activeEdges);
     }
 
     private Schedule getScheduleWithNodes(Long userId, Long scheduleId) {
