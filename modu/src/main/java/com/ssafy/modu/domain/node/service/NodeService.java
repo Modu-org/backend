@@ -127,7 +127,12 @@ public class NodeService {
 
         Set<Long> requestedNodeIds = new HashSet<>();
 
-        List<Node> placedOrMovedNodes = new ArrayList<>();
+        /*
+         * placement에서는 전체 양방향 Edge를 만들지 않는다.
+         * 변경된 날짜의 최종 visitOrder 기준 인접 Edge만 보장한다.
+         */
+        Set<LocalDate> affectedDates = new HashSet<>();
+        List<Node> unplacedNodes = new ArrayList<>();
 
         for (NodeArrangementRequest.DayArrangement day : request.getDays()) {
             validateVisitDate(schedule, day.getDate());
@@ -161,34 +166,59 @@ public class NodeService {
                 LocalDate afterVisitDate = day.getDate();
 
                 boolean dateChanged = !Objects.equals(beforeVisitDate, afterVisitDate);
+                boolean orderChanged = !Objects.equals(node.getVisitOrder(), item.getVisitOrder());
+
+                if (!dateChanged && !orderChanged) {
+                    continue;
+                }
 
                 node.updateVisitInfo(
                         item.getVisitOrder(),
                         afterVisitDate
                 );
 
+                /*
+                 * 날짜가 바뀌면 기존 날짜와 새 날짜 모두 인접 Edge 재확인이 필요하다.
+                 * 예: A -> B -> C 에서 B가 빠지면 A -> C가 새로 필요할 수 있다.
+                 */
                 if (dateChanged) {
-                    placedOrMovedNodes.add(node);
+                    if (beforeVisitDate != null) {
+                        affectedDates.add(beforeVisitDate);
+                    }
+
+                    if (afterVisitDate != null) {
+                        affectedDates.add(afterVisitDate);
+                    } else {
+                        unplacedNodes.add(node);
+                    }
+                }
+
+                /*
+                 * 같은 날짜 안에서 순서만 바뀌어도 새 인접 Edge가 필요할 수 있다.
+                 * 예: A -> B -> C 를 A -> C -> B 로 바꾸면 A -> C, C -> B가 필요하다.
+                 */
+                if (orderChanged && afterVisitDate != null) {
+                    affectedDates.add(afterVisitDate);
                 }
             }
         }
 
         /*
-         * 변경된 visitDate를 DB에 먼저 반영한다.
-         * 이후 EdgeService에서 같은 날짜 노드를 조회할 때 최신 날짜 기준으로 조회되도록 flush한다.
+         * affectedDates가 있으면 최신 visitDate / visitOrder 기준으로
+         * 인접 Edge를 계산해야 하므로 flush가 필요하다.
          */
-        nodeRepository.flush();
+        if (!affectedDates.isEmpty() || !unplacedNodes.isEmpty()) {
+            nodeRepository.flush();
 
-        for (Node node : placedOrMovedNodes) {
-            if (node.getVisitDate() == null) {
+            for (Node node : unplacedNodes) {
                 edgeService.deleteEdgesByNodeId(node.getId());
-            } else {
-                edgeService.rebuildEdgesForMovedNode(node);
             }
+
+            edgeService.createMissingAdjacentEdgesForDates(schedule, affectedDates);
         }
 
-        List<Edge> edges = edgeService.getEdgesByScheduleId(scheduleId);
-        return ScheduleDetailResponse.from(schedule, edges);
+        List<Edge> activeEdges = edgeService.getActiveEdgesForSchedule(schedule);
+        return ScheduleDetailResponse.from(schedule, activeEdges);
     }
 
     private Schedule getScheduleWithNodes(Long userId, Long scheduleId) {
