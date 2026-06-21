@@ -120,3 +120,11 @@ gms:
     api-key: ${GMS_KEY}
     model: gemini-2.5-flash
     base-url: https://gms.ssafy.io/gmsapi/generativelanguage.googleapis.com/v1beta
+
+firebase:
+  project-id: ${FIREBASE_PROJECT_ID}
+  client-email: ${FIREBASE_CLIENT_EMAIL}
+  private-key: ${FIREBASE_PRIVATE_KEY}
+  private-key-id: ${FIREBASE_PRIVATE_KEY_ID}
+  client-id: ${FIREBASE_CLIENT_ID}
+  token-uri: ${FIREBASE_TOKEN_URI:https://oauth2.googleapis.com/token}

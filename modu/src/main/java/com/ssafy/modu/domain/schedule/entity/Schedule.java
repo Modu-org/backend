@@ -46,6 +46,9 @@ public class Schedule {
     @OrderBy("visitDate ASC, visitOrder ASC, id ASC")
     private List<Node> nodes = new ArrayList<>();
 
+    @Column(name = "arrival_shared", nullable = false)
+    private boolean arrivalShared = false;
+
     public static Schedule create(User user, String title, LocalDate startDate, LocalDate endDate) {
         Schedule schedule = new Schedule();
         schedule.user = user;
@@ -83,5 +86,9 @@ public class Schedule {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    public void updateArrivalShared(boolean arrivalShared) {
+        this.arrivalShared = arrivalShared;
     }
 }

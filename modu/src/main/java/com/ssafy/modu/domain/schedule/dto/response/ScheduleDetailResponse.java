@@ -23,6 +23,7 @@ public class ScheduleDetailResponse {
     private LocalDate endDate;
     private List<ScheduleDayResponse> days;
     private List<NodeResponse> unscheduledNodes;
+    private boolean arrivalShared;
 
     public static ScheduleDetailResponse from(Schedule schedule) {
         return from(schedule, List.of());
@@ -79,6 +80,7 @@ public class ScheduleDetailResponse {
                 .title(schedule.getTitle())
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
+                .arrivalShared(schedule.isArrivalShared())
                 .days(days)
                 .unscheduledNodes(unscheduledNodes)
                 .build();

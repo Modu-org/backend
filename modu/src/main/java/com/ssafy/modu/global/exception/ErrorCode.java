@@ -55,8 +55,13 @@ public enum ErrorCode {
     INVALID_AI_TOOL_ARGUMENTS(HttpStatus.BAD_REQUEST, 951, "AI 도구 호출 인자가 올바르지 않습니다."),
     UNSUPPORTED_AI_TOOL_OPERATION(HttpStatus.BAD_REQUEST, 952, "지원하지 않는 AI 도구 작업입니다."),
     AI_TOOL_CALL_LIMIT_EXCEEDED(HttpStatus.INTERNAL_SERVER_ERROR, 953, "AI 도구 호출 횟수를 초과했습니다."),
-    INVALID_AI_SCHEDULE_RESPONSE(HttpStatus.BAD_REQUEST, 954, "AI 일정 처리 결과를 해석할 수 없습니다.");
-
+    INVALID_AI_SCHEDULE_RESPONSE(HttpStatus.BAD_REQUEST, 954, "AI 일정 처리 결과를 해석할 수 없습니다."),
+    FCM_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, 500, "FCM 알림 전송에 실패했습니다."),
+    INVALID_ARRIVAL_NODE(HttpStatus.BAD_REQUEST, 900, "도착 확인을 할 수 없는 노드입니다."),
+    INVALID_SCHEDULE_SHARE_REQUEST(HttpStatus.BAD_REQUEST, 900, "스케줄 공유 요청이 올바르지 않습니다."),
+    SCHEDULE_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "스케줄 공유 정보를 찾을 수 없습니다."),
+    INVALID_CAREGIVER_RELATION_REQUEST(HttpStatus.BAD_REQUEST, 900, "보호자 관계 요청이 올바르지 않습니다."),
+    CAREGIVER_RELATION_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "보호자 관계를 찾을 수 없습니다.");
     private final HttpStatus httpStatus;
     private final int status;
     private final String message;

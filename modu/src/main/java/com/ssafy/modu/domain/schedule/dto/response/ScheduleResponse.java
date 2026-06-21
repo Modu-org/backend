@@ -14,6 +14,7 @@ public class ScheduleResponse {
     private String title;
     private LocalDate startDate;
     private LocalDate endDate;
+    private boolean arrivalShared;
 
     public static ScheduleResponse from(Schedule schedule) {
         return ScheduleResponse.builder()
@@ -21,6 +22,7 @@ public class ScheduleResponse {
                 .title(schedule.getTitle())
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
+                .arrivalShared(schedule.isArrivalShared())
                 .build();
     }
 }

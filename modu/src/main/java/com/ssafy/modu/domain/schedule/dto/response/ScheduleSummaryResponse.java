@@ -15,6 +15,7 @@ public class ScheduleSummaryResponse {
     private LocalDate startDate;
     private LocalDate endDate;
     private long nodeCount;
+    private boolean arrivalShared;
 
     public static ScheduleSummaryResponse of(Schedule schedule, long nodeCount) {
         return ScheduleSummaryResponse.builder()
@@ -23,6 +24,7 @@ public class ScheduleSummaryResponse {
                 .startDate(schedule.getStartDate())
                 .endDate(schedule.getEndDate())
                 .nodeCount(nodeCount)
+                .arrivalShared(schedule.isArrivalShared())
                 .build();
     }
 }

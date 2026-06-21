@@ -1,5 +1,6 @@
 package com.ssafy.modu.domain.schedule.controller;
 
+import com.ssafy.modu.domain.schedule.dto.request.ScheduleArrivalShareRequest;
 import com.ssafy.modu.domain.schedule.dto.request.ScheduleCreateRequest;
 import com.ssafy.modu.domain.schedule.dto.request.ScheduleUpdateRequest;
 import com.ssafy.modu.domain.schedule.dto.response.*;
@@ -89,5 +90,25 @@ public class ScheduleController {
     ) {
         ScheduleSummaryResponse data = scheduleService.getScheduleSummary(userDetails.getUserId(), scheduleId);
         return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, "스케줄 요약 조회에 성공했습니다.", data));
+    }
+
+    @PatchMapping("/{scheduleId}/arrival-notification")
+    public ResponseEntity<ApiResponse<Void>> updateArrivalShared(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long scheduleId,
+            @Valid @RequestBody ScheduleArrivalShareRequest request
+    ) {
+        scheduleService.updateArrivalShared(
+                userDetails.getUserId(),
+                scheduleId,
+                request.getEnabled()
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        SuccessCode.OK,
+                        "보호자 도착 알림 설정이 변경되었습니다."
+                )
+        );
     }
 }
