@@ -88,7 +88,7 @@ public class Schedule {
         updatedAt = LocalDateTime.now();
     }
 
-    public void updateArrivalNotificationEnabled(boolean arrivalNotificationEnabled) {
-        this.arrivalShared = arrivalNotificationEnabled;
+    public void updateArrivalShared(boolean arrivalShared) {
+        this.arrivalShared = arrivalShared;
     }
 }
