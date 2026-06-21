@@ -12,4 +12,10 @@ public class ScheduleCreateRequest {
     private String title;
     private LocalDate startDate;
     private LocalDate endDate;
+
+    private Boolean arrivalShared = false;
+
+    public boolean getArrivalShared() {
+        return arrivalShared != null && arrivalShared;
+    }
 }
