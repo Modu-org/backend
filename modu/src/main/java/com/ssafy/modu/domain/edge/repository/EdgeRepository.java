@@ -39,4 +39,10 @@ public interface EdgeRepository extends JpaRepository<Edge, Long> {
            or e.toNode.id = :nodeId
     """)
     void deleteAllByNodeId(Long nodeId);
+
+    Optional<Edge> findByScheduleIdAndFromNodeIdAndToNodeId(
+            Long scheduleId,
+            Long fromNodeId,
+            Long toNodeId
+    );
 }
