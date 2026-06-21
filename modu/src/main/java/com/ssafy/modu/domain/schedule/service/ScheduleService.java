@@ -93,6 +93,15 @@ public class ScheduleService {
         long nodeCount = nodeRepository.countBySchedule_Id(scheduleId);
         return ScheduleSummaryResponse.of(schedule, nodeCount);
     }
+    @Transactional
+    public void updateArrivalShared(
+            Long userId,
+            Long scheduleId,
+            boolean enabled
+    ) {
+        Schedule schedule = getSchedule(userId, scheduleId);
+        schedule.updateArrivalShared(enabled);
+    }
 
     private Schedule getSchedule(Long userId, Long scheduleId) {
         return scheduleRepository.findByIdAndUser_Id(scheduleId, userId)
