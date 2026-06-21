@@ -16,6 +16,14 @@ public class FcmTokenService {
     private final FcmTokenRepository fcmTokenRepository;
 
     public void saveToken(Long userId, String token) {
+        List<FcmToken> activeTokens = fcmTokenRepository.findAllByTokenAndActiveTrue(token);
+
+        for (FcmToken activeToken : activeTokens) {
+            if (!activeToken.getUserId().equals(userId)) {
+                activeToken.deactivate();
+            }
+        }
+
         fcmTokenRepository.findByUserIdAndToken(userId, token)
                 .ifPresentOrElse(
                         FcmToken::activate,
