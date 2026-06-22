@@ -9,5 +9,5 @@ import lombok.NoArgsConstructor;
 public class CaregiverRelationRequest {
 
     @NotNull(message = "보호자 ID는 필수입니다.")
-    private Long caregiverId;
+    private String userName;
 }
