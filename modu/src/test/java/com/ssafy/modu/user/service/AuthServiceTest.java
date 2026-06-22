@@ -76,7 +76,7 @@ class AttractionServiceTest {
 
         ReflectionTestUtils.setField(attraction, "accessibilityInfos", accessibilityInfos);
 
-        given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrue(attractionId))
+        given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrueAndApiRemovedFalse(attractionId))
                 .willReturn(Optional.of(attraction));
 
         // when
@@ -135,7 +135,7 @@ class AttractionServiceTest {
         // given
         Long attractionId = 999L;
 
-        given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrue(attractionId))
+        given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrueAndApiRemovedFalse(attractionId))
                 .willReturn(Optional.empty());
 
         // when & then
