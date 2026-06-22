@@ -1,6 +1,6 @@
 package com.ssafy.modu.domain.caregiver.dto.request;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CaregiverRelationRequest {
 
-    @NotNull(message = "보호자 ID는 필수입니다.")
+    @NotBlank(message = "보호자 사용자명은 필수입니다.")
     private String userName;
 }
