@@ -13,6 +13,11 @@ public interface CaregiverRelationRepository extends JpaRepository<CaregiverRela
             Long caregiverId
     );
 
+    Optional<CaregiverRelation> findByIdAndCaregiverId(
+            Long relationId,
+            Long caregiverId
+    );
+
     boolean existsByTravelerIdAndCaregiverIdAndActiveTrue(
             Long travelerId,
             Long caregiverId
@@ -23,6 +28,10 @@ public interface CaregiverRelationRepository extends JpaRepository<CaregiverRela
     );
 
     List<CaregiverRelation> findAllByCaregiverIdAndActiveTrue(
+            Long caregiverId
+    );
+
+    List<CaregiverRelation> findAllByCaregiverIdAndActiveFalseAndAcceptedAtIsNull(
             Long caregiverId
     );
 }
