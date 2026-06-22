@@ -50,6 +50,7 @@ public class TourInitialLoadService {
         TourImportResult result = switch (jobType) {
             case ACCESSIBLE_LIST -> tourBatchFacade.runAccessibleListImport(null, startPage, maxPages);
             case GENERAL_LIST -> tourBatchFacade.runGeneralListImport(null, startPage, maxPages);
+            default -> throw new IllegalArgumentException("초기 적재용 jobType이 아닙니다: " + jobType);
         };
 
         cursor.updateAfterRun(result);
