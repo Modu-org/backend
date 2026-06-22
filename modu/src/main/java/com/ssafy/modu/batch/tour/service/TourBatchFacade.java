@@ -12,10 +12,23 @@ import org.springframework.stereotype.Service;
 public class TourBatchFacade {
 
     private final TourDataImportService tourDataImportService;
+    private final TourModifiedSyncService tourModifiedSyncService;
 
     /**
-     * 기존 호환용.
-     * startPage를 지정하지 않으면 1페이지부터 적재한다.
+     * 변경분 동기화.
+     *
+     * Scheduler는 이 메서드만 호출한다.
+     * 실제 변경분 cursor 관리는 TourModifiedSyncService가 담당한다.
+     */
+    public TourBatchSyncResult runModifiedSync(String modifiedTime, Integer maxPages) {
+        return tourModifiedSyncService.runModifiedSync(modifiedTime, maxPages);
+    }
+
+    /**
+     * 일반 관광 목록을 1페이지부터 maxPages만큼 적재한다.
+     *
+     * 초기 적재 또는 수동 호출용.
+     * 운영 변경분 동기화에서는 cursor 기반 메서드를 사용한다.
      */
     public TourImportResult runGeneralListImport(String modifiedTime, Integer maxPages) {
         return tourDataImportService.importGeneralList(modifiedTime, maxPages);
@@ -29,8 +42,10 @@ public class TourBatchFacade {
     }
 
     /**
-     * 기존 호환용.
-     * startPage를 지정하지 않으면 1페이지부터 적재한다.
+     * 무장애 관광 목록을 1페이지부터 maxPages만큼 적재한다.
+     *
+     * 초기 적재 또는 수동 호출용.
+     * 운영 변경분 동기화에서는 cursor 기반 메서드를 사용한다.
      */
     public TourImportResult runAccessibleListImport(String modifiedTime, Integer maxPages) {
         return tourDataImportService.importAccessibleList(modifiedTime, maxPages);
@@ -49,19 +64,6 @@ public class TourBatchFacade {
 
     public TourBatchResult runCommonDetailForAccessible(int batchSize) {
         return tourDataImportService.importCommonDetailForAccessibleCandidates(batchSize);
-    }
-
-    /**
-     * modifiedTime 기준 변경분 동기화.
-     * Scheduler에서 사용하는 운영용 동기화 흐름이다.
-     *
-     * 이 메서드는 변경분 조회용이므로 startPage 없이 1페이지부터 maxPages만큼 조회한다.
-     */
-    public TourBatchSyncResult runModifiedSync(String modifiedTime, Integer maxPages) {
-        TourImportResult general = runGeneralListImport(modifiedTime, maxPages);
-        TourImportResult accessible = runAccessibleListImport(modifiedTime, maxPages);
-
-        return new TourBatchSyncResult(general, accessible);
     }
 
     public TourRemovedCheckResult runRemovedAccessibleCheck() {
