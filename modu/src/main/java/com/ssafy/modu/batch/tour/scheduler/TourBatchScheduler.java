@@ -4,7 +4,6 @@ import com.ssafy.modu.batch.tour.config.TourBatchProperties;
 import com.ssafy.modu.batch.tour.dto.TourBatchResult;
 import com.ssafy.modu.batch.tour.dto.TourBatchSyncResult;
 import com.ssafy.modu.batch.tour.service.TourBatchFacade;
-import com.ssafy.modu.batch.tour.service.TourModifiedSyncService;
 import com.ssafy.modu.global.exception.BusinessException;
 import com.ssafy.modu.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +24,6 @@ public class TourBatchScheduler {
     private static final DateTimeFormatter TOUR_API_MODIFIED_TIME =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
-    private final TourModifiedSyncService tourModifiedSyncService;
     private final TourBatchFacade tourBatchFacade;
     private final TourBatchProperties props;
 
@@ -43,18 +41,21 @@ public class TourBatchScheduler {
                 modifiedTime, props.getMaxPages(), props.getDetailBatchSize());
 
         try {
+            // 변경 사항이나 새로 생긴 관광지 있는지 파악
             TourBatchSyncResult sync =
-                    tourModifiedSyncService.runModifiedSync(modifiedTime, props.getMaxPages());
+                    tourBatchFacade.runModifiedSync(modifiedTime, props.getMaxPages());
 
             log.info("Tour modified sync finished. general={}, accessible={}",
                     sync.general(),
                     sync.accessible());
 
+            // NOT_STARTED인 무장애 정보 조회
             TourBatchResult accessibilityDetail =
                     tourBatchFacade.runAccessibleDetailImport(props.getDetailBatchSize());
 
             log.info("accessibility detail 적재 완료. result={}", accessibilityDetail);
 
+            // NOT_STARTED인 관광지 상세 정보 조회
             TourBatchResult commonDetail =
                     tourBatchFacade.runCommonDetailForAccessible(props.getDetailBatchSize());
 

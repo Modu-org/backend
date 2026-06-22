@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TourModifiedSyncService {
 
-    private final TourBatchFacade tourBatchFacade;
+    private final TourDataImportService tourDataImportService;
     private final TourBatchCursorRepository cursorRepository;
 
     @Transactional
@@ -58,13 +58,13 @@ public class TourModifiedSyncService {
         );
 
         TourImportResult result = switch (jobType) {
-            case GENERAL_MODIFIED_SYNC -> tourBatchFacade.runGeneralListImport(
+            case GENERAL_MODIFIED_SYNC -> tourDataImportService.importGeneralList(
                     modifiedTime,
                     startPage,
                     maxPages
             );
 
-            case ACCESSIBLE_MODIFIED_SYNC -> tourBatchFacade.runAccessibleListImport(
+            case ACCESSIBLE_MODIFIED_SYNC -> tourDataImportService.importAccessibleList(
                     modifiedTime,
                     startPage,
                     maxPages
