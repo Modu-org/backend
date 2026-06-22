@@ -5,7 +5,10 @@ import com.ssafy.modu.domain.attraction.entity.Attraction;
 import com.ssafy.modu.domain.caregiver.entity.CaregiverRelation;
 import com.ssafy.modu.domain.caregiver.repository.CaregiverRelationRepository;
 import com.ssafy.modu.domain.node.entity.Node;
+import com.ssafy.modu.domain.notification.entity.Notification;
+import com.ssafy.modu.domain.notification.entity.enums.NotificationType;
 import com.ssafy.modu.domain.notification.service.FcmService;
+import com.ssafy.modu.domain.notification.service.NotificationService;
 import com.ssafy.modu.domain.schedule.entity.Schedule;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,8 +21,9 @@ import java.util.Map;
 public class ArrivalNotificationService {
 
     private final FcmService fcmService;
+    private final NotificationService notificationService;
     private final CaregiverRelationRepository caregiverRelationRepository;
-    // 보호자들에게 알림을 보내기 위한 메서드
+
     public void notifyCaregivers(
             Schedule schedule,
             Node currentNode,
@@ -40,21 +44,29 @@ public class ArrivalNotificationService {
                 .map(CaregiverRelation::getCaregiverId)
                 .toList();
 
-        // 보호자에게 알림을 줄 때 필요한 데이터를 Map 형태로 가공
-        Map<String, String> data = Map.of(
-                "type", "ARRIVAL",
-                "arrivalLogId", String.valueOf(arrivalLog.getId()),
-                "scheduleId", String.valueOf(schedule.getId()),
-                "nodeId", String.valueOf(currentNode.getId())
-        );
+        String title = createTitle(arrived);
+        String body = createBody(currentNode, nextNode, arrived, distanceMeters);
 
-        // 각 보호자에게 알림 전송
         for (Long caregiverId : caregiverIds) {
+            Notification notification = notificationService.createNotification(
+                    caregiverId,
+                    NotificationType.ARRIVAL,
+                    title,
+                    body,
+                    arrivalLog.getId()
+            );
+
             fcmService.sendToUser(
                     caregiverId,
-                    createTitle(arrived),
-                    createBody(currentNode, nextNode, arrived, distanceMeters),
-                    data
+                    title,
+                    body,
+                    Map.of(
+                            "type", "ARRIVAL",
+                            "notificationId", String.valueOf(notification.getId()),
+                            "arrivalLogId", String.valueOf(arrivalLog.getId()),
+                            "scheduleId", String.valueOf(schedule.getId()),
+                            "nodeId", String.valueOf(currentNode.getId())
+                    )
             );
         }
     }
