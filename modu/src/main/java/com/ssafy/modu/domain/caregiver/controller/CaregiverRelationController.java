@@ -22,11 +22,11 @@ public class CaregiverRelationController {
     private final CaregiverRelationService caregiverRelationService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<CaregiverRelationResponse>> addCaregiver(
+    public ResponseEntity<ApiResponse<CaregiverRelationResponse>> requestCaregiver(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody CaregiverRelationRequest request
     ) {
-        CaregiverRelationResponse data = caregiverRelationService.addCaregiver(
+        CaregiverRelationResponse data = caregiverRelationService.requestCaregiver(
                 userDetails.getUserId(),
                 request
         );
@@ -34,7 +34,7 @@ public class CaregiverRelationController {
         return ResponseEntity.ok(
                 ApiResponse.success(
                         SuccessCode.OK,
-                        "보호자가 등록되었습니다.",
+                        "보호자 등록 요청을 보냈습니다.",
                         data
                 )
         );
@@ -52,6 +52,58 @@ public class CaregiverRelationController {
                         SuccessCode.OK,
                         "보호자 목록 조회에 성공했습니다.",
                         data
+                )
+        );
+    }
+
+    @GetMapping("/requests/received")
+    public ResponseEntity<ApiResponse<List<CaregiverRelationResponse>>> getReceivedRequests(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        List<CaregiverRelationResponse> data =
+                caregiverRelationService.getReceivedRequests(userDetails.getUserId());
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        SuccessCode.OK,
+                        "받은 보호자 요청 목록 조회에 성공했습니다.",
+                        data
+                )
+        );
+    }
+
+    @PatchMapping("/requests/{relationId}/accept")
+    public ResponseEntity<ApiResponse<Void>> acceptRequest(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long relationId
+    ) {
+        caregiverRelationService.acceptCaregiverRequest(
+                userDetails.getUserId(),
+                relationId
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        SuccessCode.OK,
+                        "보호자 요청을 수락했습니다."
+                )
+        );
+    }
+
+    @DeleteMapping("/requests/{relationId}/reject")
+    public ResponseEntity<ApiResponse<Void>> rejectRequest(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long relationId
+    ) {
+        caregiverRelationService.rejectCaregiverRequest(
+                userDetails.getUserId(),
+                relationId
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        SuccessCode.OK,
+                        "보호자 요청을 거절했습니다."
                 )
         );
     }
