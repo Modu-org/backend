@@ -20,7 +20,7 @@ public interface AttractionRepository extends JpaRepository<Attraction, Long>, J
     List<Attraction> findByContentTypeId(String contentTypeId);
 
     @EntityGraph(attributePaths = "accessibilityInfos")
-    Optional<Attraction> findWithAccessibilityInfosByIdAndShowFlagTrue(Long id);
+    Optional<Attraction> findWithAccessibilityInfosByIdAndShowFlagTrueAndApiRemovedFalse(Long id);
     Page<Attraction> findByAccessibleCandidateTrue(Pageable pageable);
     /**
      * 무장애 후보(목록에 등장) 중, 아직 detailWithTour2를 호출하지 않은 대상 조회.

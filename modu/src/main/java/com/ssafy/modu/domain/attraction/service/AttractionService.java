@@ -140,7 +140,7 @@ public class AttractionService {
      * 따라서 목록 조회처럼 선택 카테고리 필터를 적용하지 않는다.
      */
     public AttractionDetailResponse getAttractionDetail(Long attractionId) {
-        Attraction attraction = attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrue(attractionId)
+        Attraction attraction = attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrueAndApiRemovedFalse(attractionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ATTRACTION_NOT_FOUND));
 
         return AttractionDetailResponse.from(attraction);

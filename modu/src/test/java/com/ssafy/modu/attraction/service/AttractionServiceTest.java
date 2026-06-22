@@ -76,7 +76,7 @@ class AttractionServiceTest {
 
         ReflectionTestUtils.setField(attraction, "accessibilityInfos", accessibilityInfos);
 
-        BDDMockito.given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrue(eq(attractionId)))
+        BDDMockito.given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrueAndApiRemovedFalse(eq(attractionId)))
                 .willReturn(Optional.of(attraction));
 
         // when
@@ -121,7 +121,7 @@ class AttractionServiceTest {
         // given
         Long attractionId = 999L;
 
-        BDDMockito.given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrue(eq(attractionId)))
+        BDDMockito.given(attractionRepository.findWithAccessibilityInfosByIdAndShowFlagTrueAndApiRemovedFalse(eq(attractionId)))
                 .willReturn(Optional.empty());
 
         // when & then

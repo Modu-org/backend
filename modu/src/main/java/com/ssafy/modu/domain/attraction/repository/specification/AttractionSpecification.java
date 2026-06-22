@@ -118,7 +118,7 @@ public class AttractionSpecification {
             List<Predicate> predicates = new ArrayList<>();
 
             predicates.add(cb.isTrue(root.get("showFlag")));
-
+            predicates.add(cb.isFalse(root.get("apiRemoved")));
             addRegionCondition(predicates, root, cb, condition);
             addSigunguCondition(predicates, root, condition);
             addKeywordCondition(predicates, root, cb, condition);
