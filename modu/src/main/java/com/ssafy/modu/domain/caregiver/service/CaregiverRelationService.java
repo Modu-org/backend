@@ -50,11 +50,11 @@ public class CaregiverRelationService {
             CaregiverRelation relation = relationOptional.get();
 
             if (relation.isActive()) {
-                return toResponse(relation);
+                throw new BusinessException(ErrorCode.CAREGIVER_RELATION_ALREADY_ACCEPTED);
             }
 
             if (relation.getAcceptedAt() == null) {
-                return toResponse(relation);
+                throw new BusinessException(ErrorCode.CAREGIVER_RELATION_ALREADY_REQUESTED);
             }
 
             relation.requestAgain();

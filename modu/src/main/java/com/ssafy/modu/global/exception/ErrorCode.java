@@ -61,6 +61,8 @@ public enum ErrorCode {
     INVALID_SCHEDULE_SHARE_REQUEST(HttpStatus.BAD_REQUEST, 900, "스케줄 공유 요청이 올바르지 않습니다."),
     SCHEDULE_SHARE_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "스케줄 공유 정보를 찾을 수 없습니다."),
     INVALID_CAREGIVER_RELATION_REQUEST(HttpStatus.BAD_REQUEST, 900, "보호자 관계 요청이 올바르지 않습니다."),
+    CAREGIVER_RELATION_ALREADY_ACCEPTED(HttpStatus.BAD_REQUEST, 900, "이미 보호자로 등록된 사용자입니다."),
+    CAREGIVER_RELATION_ALREADY_REQUESTED(HttpStatus.BAD_REQUEST, 900, "이미 보호자 등록 요청을 보낸 사용자입니다."),
     CAREGIVER_RELATION_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "보호자 관계를 찾을 수 없습니다."),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, 904, "존재하지 않는 알림입니다."),
     ARRIVAL_LOG_NOT_FOUND(HttpStatus.NOT_FOUND,904,"존재하지 않는 도착로그입니다.");
