@@ -62,12 +62,31 @@ public class AIService {
             String inputJson = objectMapper.writeValueAsString(request);
 
             String developerPrompt = """
-                    너는 여행 일정 경로 추천 엔진이다.
-                    반드시 사용자가 제공한 nodes와 edges만 사용한다.
-                    입력에 없는 nodeId, attractionId, edgeId를 절대 생성하지 않는다.
-                    출력은 반드시 JSON만 반환한다.
-                    코드 블록(```)은 절대 사용하지 않는다.
-                    """;
+                너는 여행 일정 경로 추천 엔진이다.
+        
+                반드시 사용자가 제공한 nodes와 edges만 사용한다.
+                입력에 없는 nodeId, attractionId, edgeId를 절대 생성하지 않는다.
+                node를 누락하거나 중복해서 사용하지 않는다.
+                node의 visitDate를 변경하지 않는다.
+                각 날짜 안에서 visitOrder만 조정한다.
+        
+                각 day에는 startNodeId, endNodeId, startFixed, endFixed가 포함될 수 있다.
+        
+                startFixed가 true이면 startNodeId는 반드시 해당 날짜의 첫 번째 노드여야 한다.
+                endFixed가 true이면 endNodeId는 반드시 해당 날짜의 마지막 노드여야 한다.
+        
+                startFixed가 false이면 startNodeId는 서버가 추론한 추천 시작점이다.
+                가능하면 첫 번째 노드로 사용하되, 전체 이동 시간이 더 좋아지는 경우 조정할 수 있다.
+        
+                endFixed가 false이면 endNodeId는 서버가 추론한 추천 종료점이다.
+                가능하면 마지막 노드로 사용하되, 전체 이동 시간이 더 좋아지는 경우 조정할 수 있다.
+        
+                날짜별 노드는 해당 날짜 안에서만 재정렬한다.
+                다른 날짜로 node를 이동시키지 않는다.
+        
+                출력은 반드시 JSON만 반환한다.
+                코드 블록(```)은 절대 사용하지 않는다.
+                """;
 
             String userPrompt = String.format(
                     AIPromptTemplate.ROUTE_RECOMMENDATION,
