@@ -34,11 +34,41 @@ public class RouteRecommendAiRequest {
 
         private LocalDate date;
 
-        // 해당 날짜에서 첫 번째로 고정할 nodeId
-        private Long startNodeId;
+        /*
+         * AI에게 전달하는 시작 선호 노드.
+         *
+         * startFixed=true:
+         * - 프론트 요청으로 들어온 강제 시작 노드
+         * - 반드시 해당 날짜의 첫 번째 노드여야 한다.
+         *
+         * startFixed=false:
+         * - 서버가 자동 배치 과정에서 추론한 추천 시작 노드
+         * - 가능하면 첫 번째로 사용하되, 더 좋은 경로가 있으면 조정할 수 있다.
+         */
+        private Long preferredStartNodeId;
 
-        // 해당 날짜에서 마지막으로 고정할 nodeId
-        private Long endNodeId;
+        /*
+         * AI에게 전달하는 종료 선호 노드.
+         *
+         * endFixed=true:
+         * - 프론트 요청으로 들어온 강제 종료 노드
+         * - 반드시 해당 날짜의 마지막 노드여야 한다.
+         *
+         * endFixed=false:
+         * - 서버가 자동 배치 과정에서 추론한 추천 종료 노드
+         * - 가능하면 마지막으로 사용하되, 더 좋은 경로가 있으면 조정할 수 있다.
+         */
+        private Long preferredEndNodeId;
+
+        /*
+         * preferredStartNodeId가 프론트 요청으로 들어온 강제 조건인지 여부.
+         */
+        private boolean startFixed;
+
+        /*
+         * preferredEndNodeId가 프론트 요청으로 들어온 강제 조건인지 여부.
+         */
+        private boolean endFixed;
 
         // 해당 날짜에 배치된 노드들
         private List<NodeRequest> nodes;

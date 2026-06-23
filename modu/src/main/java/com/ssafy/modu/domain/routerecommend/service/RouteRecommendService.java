@@ -34,11 +34,12 @@ public class RouteRecommendService {
      *
      * 흐름:
      * 1. 스케줄과 노드 조회
-     * 2. start/end 조건 노드만 해당 날짜에 고정하고 나머지 노드는 전체 일정 기간에 다시 자동 배치
-     * 3. 같은 날짜 노드들 사이 필요한 Edge를 준비한다. 기존 Edge가 있으면 재사용하고, 없으면 새로 생성한다.
-     * 4. AI 요청 생성
-     * 5. AI 응답 검증
-     * 6. 추천된 방문 순서 DB 반영
+     * 2. 사용자가 지정한 start/end는 fixed boundary로 처리한다.
+     * 3. 날짜 수에 맞게 seed 기반 군집 배치를 수행한다.
+     * 4. 각 날짜의 inferred start/end를 계산한다.
+     * 5. Day N의 end가 Day N+1의 start 계산에 반영되도록 한다.
+     * 6. AI 요청에는 fixed + inferred를 합친 effective boundary를 전달한다.
+     * 7. AI 응답은 서버가 검증한 뒤 DB에 반영한다.
      */
     @Transactional
     public ScheduleDetailResponse autoArrange(
@@ -55,18 +56,25 @@ public class RouteRecommendService {
 
         validateRequest(schedule, nodes, conditionMap);
 
-        // start/end 조건 노드만 날짜에 고정하고, 나머지 노드는 기존 날짜를 무시한 뒤 다시 배정한다.
-        List<Node> arrangedNodes = placeNodes(schedule, nodes, conditionMap);
+        PlanningResult planningResult = placeNodes(schedule, nodes, conditionMap);
 
-        // 기존 Edge는 재사용하고, 없는 Edge만 날짜 단위로 일괄 생성한다.
-        edgeService.createMissingEdgesForNewlyPlacedNodes(arrangedNodes);
+        edgeService.createMissingEdgesForNewlyPlacedNodes(planningResult.arrangedNodes());
 
         List<Edge> edges = edgeService.getEdgesByScheduleId(scheduleId);
 
-        RouteRecommendAiRequest aiRequest = buildAiRequest(schedule, nodes, edges, conditionMap);
+        RouteRecommendAiRequest aiRequest = buildAiRequest(
+                schedule,
+                nodes,
+                edges,
+                planningResult.boundaryMap()
+        );
 
         RouteRecommendAiResponse aiResponse = aiService.recommendRoute(aiRequest);
 
+        /*
+         * conditionMap은 사용자가 명시한 fixed start/end 조건만 가진다.
+         * inferred boundary는 AI 요청에는 전달되지만, 서버 검증에서는 강제하지 않는다.
+         */
         validateAiResponse(aiRequest, aiResponse, conditionMap);
 
         applyRecommendedOrder(nodes, aiResponse);
@@ -77,9 +85,41 @@ public class RouteRecommendService {
     }
 
     /**
+     * 날짜 배치 결과와 날짜별 boundary 정보를 함께 담는다.
+     */
+    private record PlanningResult(
+            List<Node> arrangedNodes,
+            Map<LocalDate, DayBoundary> boundaryMap
+    ) {
+    }
+
+    /**
+     * fixed boundary:
+     * - 사용자가 직접 지정한 start/end
+     * - 반드시 지켜야 하는 조건
+     *
+     * inferred boundary:
+     * - 서버가 자동 배치 과정에서 추론한 start/end
+     * - 날짜 간 연결성을 위해 AI에게 전달하는 참고 조건
+     */
+    private record DayBoundary(
+            LocalDate date,
+            Long fixedStartNodeId,
+            Long fixedEndNodeId,
+            Long inferredStartNodeId,
+            Long inferredEndNodeId
+    ) {
+        Long effectiveStartNodeId() {
+            return fixedStartNodeId != null ? fixedStartNodeId : inferredStartNodeId;
+        }
+
+        Long effectiveEndNodeId() {
+            return fixedEndNodeId != null ? fixedEndNodeId : inferredEndNodeId;
+        }
+    }
+
+    /**
      * 요청으로 들어온 날짜별 조건을 Map으로 변환한다.
-     * key: 날짜
-     * value: 해당 날짜의 시작/종료 노드 조건
      */
     private Map<LocalDate, AutoArrangeRequest.DayCondition> toConditionMap(
             AutoArrangeRequest request
@@ -119,7 +159,6 @@ public class RouteRecommendService {
         for (AutoArrangeRequest.DayCondition condition : conditionMap.values()) {
             LocalDate date = condition.getDate();
 
-            // 조건 날짜는 스케줄 기간 안에 있어야 한다.
             if (date.isBefore(schedule.getStartDate()) || date.isAfter(schedule.getEndDate())) {
                 throw new BusinessException(ErrorCode.INVALID_ROUTE_RECOMMENDATION_REQUEST);
             }
@@ -127,7 +166,6 @@ public class RouteRecommendService {
             Long startNodeId = condition.getStartNodeId();
             Long endNodeId = condition.getEndNodeId();
 
-            // 시작/종료 노드는 실제 스케줄에 포함된 노드여야 한다.
             if (startNodeId != null && !nodeIds.contains(startNodeId)) {
                 throw new BusinessException(ErrorCode.INVALID_ROUTE_RECOMMENDATION_REQUEST);
             }
@@ -136,7 +174,6 @@ public class RouteRecommendService {
                 throw new BusinessException(ErrorCode.INVALID_ROUTE_RECOMMENDATION_REQUEST);
             }
 
-            // 시작 노드와 종료 노드가 같으면 안 된다.
             if (startNodeId != null && startNodeId.equals(endNodeId)) {
                 throw new BusinessException(ErrorCode.INVALID_ROUTE_RECOMMENDATION_REQUEST);
             }
@@ -163,21 +200,19 @@ public class RouteRecommendService {
     }
 
     /**
-     * 자동배치 대상 노드를 스케줄 기간 안의 날짜에 재분배한다.
+     * 자동배치 대상 노드를 날짜별로 배치한다.
      *
-     * 재배치 기준:
-     * 1. startNodeId/endNodeId로 지정된 노드는 해당 날짜에 우선 고정한다.
-     * 2. start/end 고정 노드가 하나도 없으면, 날짜별 대표 seed 노드를 먼저 배치한다.
-     * 3. 고정되지 않은 나머지 노드는 기존 visitDate를 유지하지 않고 전체 일정 기간에 다시 배정한다.
-     * 4. 특정 날짜에 너무 몰리지 않도록 최대 노드 수 기준을 둔다.
+     * 핵심:
+     * - fixed start/end는 해당 날짜에 먼저 배치한다.
+     * - 빈 날짜는 seed로 먼저 채운다.
+     * - 나머지 노드는 군집 점수 + 날짜 간 연결 점수로 배치한다.
+     * - 각 날짜의 inferred start/end를 계산한다.
      */
-    private List<Node> placeNodes(
+    private PlanningResult placeNodes(
             Schedule schedule,
             List<Node> nodes,
             Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap
     ) {
-        List<Node> arrangedNodes = new ArrayList<>();
-
         List<LocalDate> scheduleDates = getScheduleDates(schedule);
 
         Map<Long, Node> nodeMap = nodes.stream()
@@ -185,25 +220,16 @@ public class RouteRecommendService {
 
         Map<Long, LocalDate> fixedDateByNodeId = buildFixedDateByNodeId(conditionMap);
 
-        /*
-         * 자동배치 계산용 날짜별 노드 그룹.
-         * 전체 재배치 정책이므로 기존 visitDate는 기준으로 사용하지 않는다.
-         * start/end 고정 노드 또는 seed 노드를 먼저 배치한 뒤,
-         * 나머지 노드를 가까운 날짜 그룹에 붙인다.
-         */
-        Map<LocalDate, List<Node>> plannedNodesByDate = new HashMap<>();
+        Map<LocalDate, List<Node>> plannedNodesByDate = new TreeMap<>();
 
         for (LocalDate date : scheduleDates) {
             plannedNodesByDate.put(date, new ArrayList<>());
         }
 
-        int maxNodesPerDay = calculateMaxNodesPerDay(
-                nodes.size(),
-                scheduleDates.size()
-        );
+        List<Node> arrangedNodes = new ArrayList<>();
 
         /*
-         * 1. 시작/종료 노드 조건이 있는 노드를 기존 날짜와 관계없이 해당 날짜에 고정한다.
+         * 1. 사용자가 지정한 start/end 노드는 해당 날짜에 먼저 고정 배치한다.
          */
         for (Map.Entry<Long, LocalDate> entry : fixedDateByNodeId.entrySet()) {
             placeFixedNode(
@@ -216,21 +242,16 @@ public class RouteRecommendService {
         }
 
         /*
-         * 2. start/end 고정 노드가 하나도 없으면,
-         *    날짜별 위치 기준점 역할을 할 seed 노드를 먼저 배치한다.
+         * 2. 각 날짜가 가능하면 비지 않도록 seed를 먼저 배치한다.
+         *    단, 이미 fixed 노드가 들어간 날짜는 seed를 추가하지 않는다.
          */
-        if (fixedDateByNodeId.isEmpty()) {
-            placeSeedNodes(
-                    scheduleDates,
-                    plannedNodesByDate,
-                    arrangedNodes,
-                    nodes
-            );
-        }
+        placeSeedNodesForEmptyDates(
+                scheduleDates,
+                plannedNodesByDate,
+                arrangedNodes,
+                nodes
+        );
 
-        /*
-         * 3. 아직 배치되지 않은 나머지 노드는 전체 자동 재배치 정책에 따라 다시 날짜를 배정한다.
-         */
         Set<Long> arrangedNodeIds = arrangedNodes.stream()
                 .map(Node::getId)
                 .collect(Collectors.toSet());
@@ -240,38 +261,113 @@ public class RouteRecommendService {
                 .sorted(Comparator.comparing(Node::getId))
                 .toList();
 
+        int maxNodesPerDay = calculateMaxNodesPerDay(
+                nodes.size(),
+                scheduleDates.size()
+        );
+
+        Map<LocalDate, DayBoundary> boundaryMap = inferBoundaries(
+                scheduleDates,
+                plannedNodesByDate,
+                conditionMap
+        );
+
+        /*
+         * 3. 나머지 노드는 군집 점수 + 날짜 간 연결 점수로 배치한다.
+         *    노드가 배치될 때마다 boundary를 다시 계산해서,
+         *    자동으로 생긴 Day N end가 Day N+1 start 판단에 반영되도록 한다.
+         */
         for (Node node : movableNodes) {
             LocalDate targetDate = findBestDateForNode(
                     node,
                     scheduleDates,
                     plannedNodesByDate,
+                    boundaryMap,
+                    nodeMap,
                     maxNodesPerDay
             );
 
-            int nextVisitOrder = plannedNodesByDate.get(targetDate).size() + 1;
-
-            node.updateVisitInfo(nextVisitOrder, targetDate);
-
             plannedNodesByDate.get(targetDate).add(node);
             arrangedNodes.add(node);
+
+            boundaryMap = inferBoundaries(
+                    scheduleDates,
+                    plannedNodesByDate,
+                    conditionMap
+            );
         }
 
-        return arrangedNodes;
+        /*
+         * 4. 최종 날짜 그룹 기준으로 inferred start/end를 계산하고,
+         *    그 boundary에 맞춰 임시 visitOrder를 부여한다.
+         */
+        boundaryMap = inferBoundaries(
+                scheduleDates,
+                plannedNodesByDate,
+                conditionMap
+        );
+
+        applyInitialOrdersByBoundary(
+                scheduleDates,
+                plannedNodesByDate,
+                boundaryMap
+        );
+
+        return new PlanningResult(arrangedNodes, boundaryMap);
+    }
+
+    /**
+     * 빈 날짜에 seed 노드를 배치한다.
+     * 노드 수가 날짜 수보다 적으면 모든 날짜를 채울 수 없으므로 가능한 만큼만 배치한다.
+     */
+    private void placeSeedNodesForEmptyDates(
+            List<LocalDate> scheduleDates,
+            Map<LocalDate, List<Node>> plannedNodesByDate,
+            List<Node> arrangedNodes,
+            List<Node> nodes
+    ) {
+        Set<Long> alreadyPlacedNodeIds = arrangedNodes.stream()
+                .map(Node::getId)
+                .collect(Collectors.toSet());
+
+        List<LocalDate> emptyDates = scheduleDates.stream()
+                .filter(date -> plannedNodesByDate.getOrDefault(date, List.of()).isEmpty())
+                .toList();
+
+        if (emptyDates.isEmpty()) {
+            return;
+        }
+
+        List<Node> candidateNodes = nodes.stream()
+                .filter(node -> !alreadyPlacedNodeIds.contains(node.getId()))
+                .toList();
+
+        if (candidateNodes.isEmpty()) {
+            return;
+        }
+
+        int seedCount = Math.min(emptyDates.size(), candidateNodes.size());
+
+        List<Node> seedNodes = selectSeedNodes(candidateNodes, seedCount);
+
+        for (int i = 0; i < seedNodes.size(); i++) {
+            Node seedNode = seedNodes.get(i);
+            LocalDate targetDate = emptyDates.get(i);
+
+            plannedNodesByDate.get(targetDate).add(seedNode);
+            arrangedNodes.add(seedNode);
+        }
     }
 
     /**
      * 고정되지 않은 노드를 어느 날짜 그룹에 배치할지 결정한다.
-     *
-     * 기준:
-     * - 해당 날짜에 이미 배치된 노드들과 가까울수록 좋다.
-     * - 특정 날짜에 노드가 너무 많으면 강한 페널티를 준다.
-     * - 점수가 같으면 현재 노드 수가 적은 날짜를 우선한다.
-     * - 그래도 같으면 빠른 날짜를 우선한다.
      */
     private LocalDate findBestDateForNode(
             Node node,
             List<LocalDate> scheduleDates,
-            Map<LocalDate, List<Node>> nodesByDate,
+            Map<LocalDate, List<Node>> plannedNodesByDate,
+            Map<LocalDate, DayBoundary> boundaryMap,
+            Map<Long, Node> nodeMap,
             int maxNodesPerDay
     ) {
         return scheduleDates.stream()
@@ -279,64 +375,445 @@ public class RouteRecommendService {
                         .comparing((LocalDate date) -> calculateDateScore(
                                 node,
                                 date,
-                                nodesByDate,
+                                scheduleDates,
+                                plannedNodesByDate,
+                                boundaryMap,
+                                nodeMap,
                                 maxNodesPerDay
                         ))
-                        .thenComparing(date -> nodesByDate.getOrDefault(date, List.of()).size())
+                        .thenComparing(date -> plannedNodesByDate.getOrDefault(date, List.of()).size())
                         .thenComparing(date -> date))
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_ROUTE_RECOMMENDATION_REQUEST));
     }
 
     /**
-     * 특정 날짜에 node를 배치했을 때의 휴리스틱 점수를 계산한다.
+     * 특정 날짜에 node를 배치했을 때의 점수를 계산한다.
      *
      * 점수가 낮을수록 더 좋은 날짜다.
      *
-     * 기준:
-     * - 해당 날짜에 이미 start/end 고정 노드나 seed 노드가 있으면, 그 그룹과의 거리를 기준으로 한다.
-     * - 아직 아무 노드도 없는 날짜는 기본 점수를 부여한다.
-     * - 날짜별 노드 수가 너무 많아지지 않도록 점진적 페널티를 부여한다.
+     * 반영 요소:
+     * - 해당 날짜 그룹과의 거리
+     * - 이전 날짜 end와의 연결성
+     * - 다음 날짜 start와의 연결성
+     * - 약한 불균형 페널티
      */
     private double calculateDateScore(
             Node node,
             LocalDate date,
+            List<LocalDate> scheduleDates,
             Map<LocalDate, List<Node>> plannedNodesByDate,
+            Map<LocalDate, DayBoundary> boundaryMap,
+            Map<Long, Node> nodeMap,
             int maxNodesPerDay
     ) {
         List<Node> dateNodes = plannedNodesByDate.getOrDefault(date, List.of());
 
-        double distanceScore;
+        double clusterScore = dateNodes.isEmpty()
+                ? 0.0
+                : distanceToDateGroup(node, dateNodes);
 
-        if (dateNodes.isEmpty()) {
-            /*
-             * 아직 아무 노드도 없는 날짜는 거리 비교 기준이 없다.
-             * 너무 유리하거나 불리하지 않게 기본 점수를 준다.
-             */
-            distanceScore = 50.0;
-        } else {
-            distanceScore = distanceToDateGroup(node, dateNodes);
+        double previousFlowScore = calculatePreviousFlowScore(
+                node,
+                date,
+                scheduleDates,
+                boundaryMap,
+                nodeMap
+        );
+
+        double nextFlowScore = calculateNextFlowScore(
+                node,
+                date,
+                scheduleDates,
+                boundaryMap,
+                nodeMap
+        );
+
+        double balancePenalty = calculateWeakBalancePenalty(
+                date,
+                plannedNodesByDate,
+                maxNodesPerDay
+        );
+
+        return clusterScore
+                + previousFlowScore * 0.4
+                + nextFlowScore * 0.25
+                + balancePenalty;
+    }
+
+    /**
+     * 현재 node를 특정 날짜에 배치했을 때,
+     * 이전 날짜의 end와 얼마나 자연스럽게 이어지는지 계산한다.
+     */
+    private double calculatePreviousFlowScore(
+            Node node,
+            LocalDate date,
+            List<LocalDate> scheduleDates,
+            Map<LocalDate, DayBoundary> boundaryMap,
+            Map<Long, Node> nodeMap
+    ) {
+        LocalDate previousDate = getPreviousDate(scheduleDates, date);
+
+        if (previousDate == null) {
+            return 0.0;
         }
 
-        int currentCount = dateNodes.size();
+        DayBoundary previousBoundary = boundaryMap.get(previousDate);
 
-        /*
-         * maxNodesPerDay는 절대 제한이 아니라 권장 기준으로 사용한다.
-         * 가까운 노드끼리는 같은 날짜에 더 많이 묶일 수 있도록,
-         * 권장 개수를 초과한 경우에도 점진적으로 페널티를 준다.
-         */
+        if (previousBoundary == null || previousBoundary.effectiveEndNodeId() == null) {
+            return 0.0;
+        }
+
+        Node previousEndNode = nodeMap.get(previousBoundary.effectiveEndNodeId());
+
+        if (previousEndNode == null) {
+            return 0.0;
+        }
+
+        return distanceKm(previousEndNode, node);
+    }
+
+    /**
+     * 현재 node를 특정 날짜에 배치했을 때,
+     * 다음 날짜의 start와 얼마나 자연스럽게 이어지는지 계산한다.
+     */
+    private double calculateNextFlowScore(
+            Node node,
+            LocalDate date,
+            List<LocalDate> scheduleDates,
+            Map<LocalDate, DayBoundary> boundaryMap,
+            Map<Long, Node> nodeMap
+    ) {
+        LocalDate nextDate = getNextDate(scheduleDates, date);
+
+        if (nextDate == null) {
+            return 0.0;
+        }
+
+        DayBoundary nextBoundary = boundaryMap.get(nextDate);
+
+        if (nextBoundary == null || nextBoundary.effectiveStartNodeId() == null) {
+            return 0.0;
+        }
+
+        Node nextStartNode = nodeMap.get(nextBoundary.effectiveStartNodeId());
+
+        if (nextStartNode == null) {
+            return 0.0;
+        }
+
+        return distanceKm(node, nextStartNode);
+    }
+
+    /**
+     * 날짜별 불균형은 약하게만 반영한다.
+     * 5:1 같은 분배도 동선상 자연스러우면 허용하기 위함이다.
+     */
+    private double calculateWeakBalancePenalty(
+            LocalDate date,
+            Map<LocalDate, List<Node>> plannedNodesByDate,
+            int maxNodesPerDay
+    ) {
+        int currentCount = plannedNodesByDate.getOrDefault(date, List.of()).size();
+
         int overCount = Math.max(0, currentCount - maxNodesPerDay + 1);
 
-        double crowdPenalty = currentCount * 5.0
-                + overCount * overCount * 30.0;
+        return currentCount * 0.5
+                + overCount * overCount * 5.0;
+    }
 
-        return distanceScore + crowdPenalty;
+    private LocalDate getPreviousDate(
+            List<LocalDate> scheduleDates,
+            LocalDate date
+    ) {
+        int index = scheduleDates.indexOf(date);
+
+        if (index <= 0) {
+            return null;
+        }
+
+        return scheduleDates.get(index - 1);
+    }
+
+    private LocalDate getNextDate(
+            List<LocalDate> scheduleDates,
+            LocalDate date
+    ) {
+        int index = scheduleDates.indexOf(date);
+
+        if (index < 0 || index >= scheduleDates.size() - 1) {
+            return null;
+        }
+
+        return scheduleDates.get(index + 1);
+    }
+
+    /**
+     * 날짜별 boundary를 추론한다.
+     *
+     * 핵심:
+     * - fixed start/end가 있으면 그것을 우선한다.
+     * - fixed start가 없고 이전 날짜 end가 있으면, 이전 날짜 end와 가까운 노드를 start로 추론한다.
+     * - fixed end가 없으면, start에서 가장 먼 노드를 end로 추론한다.
+     */
+    private Map<LocalDate, DayBoundary> inferBoundaries(
+            List<LocalDate> scheduleDates,
+            Map<LocalDate, List<Node>> plannedNodesByDate,
+            Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap
+    ) {
+        Map<LocalDate, DayBoundary> boundaryMap = new TreeMap<>();
+
+        Node previousDayEndNode = null;
+
+        for (LocalDate date : scheduleDates) {
+            List<Node> dayNodes = plannedNodesByDate.getOrDefault(date, List.of());
+
+            AutoArrangeRequest.DayCondition condition = conditionMap.get(date);
+
+            Long fixedStartNodeId = condition != null ? condition.getStartNodeId() : null;
+            Long fixedEndNodeId = condition != null ? condition.getEndNodeId() : null;
+
+            Node inferredStartNode = inferStartNode(
+                    dayNodes,
+                    fixedStartNodeId,
+                    fixedEndNodeId,
+                    previousDayEndNode
+            );
+
+            Node inferredEndNode = inferEndNode(
+                    dayNodes,
+                    fixedEndNodeId,
+                    inferredStartNode
+            );
+
+            Long inferredStartNodeId = inferredStartNode != null ? inferredStartNode.getId() : null;
+            Long inferredEndNodeId = inferredEndNode != null ? inferredEndNode.getId() : null;
+
+            DayBoundary boundary = new DayBoundary(
+                    date,
+                    fixedStartNodeId,
+                    fixedEndNodeId,
+                    inferredStartNodeId,
+                    inferredEndNodeId
+            );
+
+            boundaryMap.put(date, boundary);
+
+            previousDayEndNode = fixedEndNodeId != null
+                    ? findNodeById(dayNodes, fixedEndNodeId)
+                    : inferredEndNode;
+        }
+
+        return boundaryMap;
+    }
+
+    private Node inferStartNode(
+            List<Node> dayNodes,
+            Long fixedStartNodeId,
+            Long fixedEndNodeId,
+            Node previousDayEndNode
+    ) {
+        if (dayNodes == null || dayNodes.isEmpty()) {
+            return null;
+        }
+
+        if (fixedStartNodeId != null) {
+            return findNodeById(dayNodes, fixedStartNodeId);
+        }
+
+        if (previousDayEndNode != null) {
+            return dayNodes.stream()
+                    .filter(node -> !Objects.equals(node.getId(), fixedEndNodeId))
+                    .min(Comparator
+                            .comparingDouble((Node node) -> distanceKm(previousDayEndNode, node))
+                            .thenComparing(Node::getId))
+                    .orElse(dayNodes.get(0));
+        }
+
+        return findMedoidNode(dayNodes);
+    }
+
+    private Node inferEndNode(
+            List<Node> dayNodes,
+            Long fixedEndNodeId,
+            Node startNode
+    ) {
+        if (dayNodes == null || dayNodes.isEmpty()) {
+            return null;
+        }
+
+        if (fixedEndNodeId != null) {
+            return findNodeById(dayNodes, fixedEndNodeId);
+        }
+
+        if (startNode == null) {
+            return dayNodes.get(dayNodes.size() - 1);
+        }
+
+        return dayNodes.stream()
+                .filter(node -> !Objects.equals(node.getId(), startNode.getId()))
+                .max(Comparator
+                        .comparingDouble((Node node) -> distanceKm(startNode, node))
+                        .thenComparing(Node::getId))
+                .orElse(startNode);
+    }
+
+    /**
+     * boundary 기준으로 AI 요청 전 임시 visitOrder를 부여한다.
+     */
+    private void applyInitialOrdersByBoundary(
+            List<LocalDate> scheduleDates,
+            Map<LocalDate, List<Node>> plannedNodesByDate,
+            Map<LocalDate, DayBoundary> boundaryMap
+    ) {
+        for (LocalDate date : scheduleDates) {
+            List<Node> dayNodes = new ArrayList<>(
+                    plannedNodesByDate.getOrDefault(date, List.of())
+            );
+
+            if (dayNodes.isEmpty()) {
+                continue;
+            }
+
+            DayBoundary boundary = boundaryMap.get(date);
+
+            Long startNodeId = boundary != null ? boundary.effectiveStartNodeId() : null;
+            Long endNodeId = boundary != null ? boundary.effectiveEndNodeId() : null;
+
+            List<Node> orderedNodes = orderNodesByNearestNeighbor(
+                    dayNodes,
+                    startNodeId,
+                    endNodeId
+            );
+
+            for (int i = 0; i < orderedNodes.size(); i++) {
+                orderedNodes.get(i).updateVisitInfo(i + 1, date);
+            }
+        }
+    }
+
+    /**
+     * 날짜 내부 임시 순서를 nearest neighbor 방식으로 계산한다.
+     * AI가 최종 순서를 다시 추천하지만, Edge 생성과 AI 입력 품질을 위해 임시 순서를 잡는다.
+     */
+    private List<Node> orderNodesByNearestNeighbor(
+            List<Node> dayNodes,
+            Long startNodeId,
+            Long endNodeId
+    ) {
+        if (dayNodes == null || dayNodes.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Node> nodeMap = dayNodes.stream()
+                .collect(Collectors.toMap(Node::getId, Function.identity()));
+
+        Node startNode = startNodeId != null ? nodeMap.get(startNodeId) : null;
+        Node endNode = endNodeId != null ? nodeMap.get(endNodeId) : null;
+
+        if (startNode == null) {
+            startNode = findMedoidNode(dayNodes);
+        }
+
+        List<Node> orderedNodes = new ArrayList<>();
+        Set<Long> visitedNodeIds = new HashSet<>();
+
+        orderedNodes.add(startNode);
+        visitedNodeIds.add(startNode.getId());
+
+        Node currentNode = startNode;
+
+        while (visitedNodeIds.size() < dayNodes.size()) {
+            Node nextNode = findNearestUnvisitedNode(
+                    currentNode,
+                    dayNodes,
+                    visitedNodeIds,
+                    endNode
+            );
+
+            if (nextNode == null) {
+                break;
+            }
+
+            orderedNodes.add(nextNode);
+            visitedNodeIds.add(nextNode.getId());
+            currentNode = nextNode;
+        }
+
+        if (endNode != null
+                && orderedNodes.stream().anyMatch(node -> Objects.equals(node.getId(), endNode.getId()))) {
+            orderedNodes.removeIf(node -> Objects.equals(node.getId(), endNode.getId()));
+            orderedNodes.add(endNode);
+        }
+
+        return orderedNodes;
+    }
+
+    private Node findNearestUnvisitedNode(
+            Node currentNode,
+            List<Node> dayNodes,
+            Set<Long> visitedNodeIds,
+            Node endNode
+    ) {
+        long remainingNonEndNodeCount = dayNodes.stream()
+                .filter(node -> !visitedNodeIds.contains(node.getId()))
+                .filter(node -> endNode == null || !Objects.equals(node.getId(), endNode.getId()))
+                .count();
+
+        return dayNodes.stream()
+                .filter(node -> !visitedNodeIds.contains(node.getId()))
+                .filter(node -> {
+                    if (endNode == null) {
+                        return true;
+                    }
+
+                    boolean isEndNode = Objects.equals(node.getId(), endNode.getId());
+
+                    return !isEndNode || remainingNonEndNodeCount == 0;
+                })
+                .min(Comparator
+                        .comparingDouble((Node node) -> distanceKm(currentNode, node))
+                        .thenComparing(Node::getId))
+                .orElse(null);
+    }
+
+    private Node findMedoidNode(List<Node> nodes) {
+        if (nodes == null || nodes.isEmpty()) {
+            return null;
+        }
+
+        return nodes.stream()
+                .min(Comparator
+                        .comparingDouble((Node node) -> totalDistanceToGroup(node, nodes))
+                        .thenComparing(Node::getId))
+                .orElse(nodes.get(0));
+    }
+
+    private double totalDistanceToGroup(
+            Node targetNode,
+            List<Node> nodes
+    ) {
+        return nodes.stream()
+                .filter(node -> !Objects.equals(node.getId(), targetNode.getId()))
+                .mapToDouble(node -> distanceKm(targetNode, node))
+                .sum();
+    }
+
+    private Node findNodeById(
+            List<Node> nodes,
+            Long nodeId
+    ) {
+        if (nodes == null || nodeId == null) {
+            return null;
+        }
+
+        return nodes.stream()
+                .filter(node -> Objects.equals(node.getId(), nodeId))
+                .findFirst()
+                .orElse(null);
     }
 
     /**
      * targetNode가 특정 날짜 그룹과 얼마나 가까운지 계산한다.
-     *
-     * 날짜 그룹 안에 이미 배치된 노드들 중
-     * targetNode와 가장 가까운 노드와의 직선거리를 기준으로 한다.
      */
     private double distanceToDateGroup(
             Node targetNode,
@@ -356,6 +833,10 @@ public class RouteRecommendService {
      * 두 노드 사이의 위도/경도 기반 직선거리(km)를 계산한다.
      */
     private double distanceKm(Node a, Node b) {
+        if (a == null || b == null) {
+            return Double.MAX_VALUE;
+        }
+
         if (a.getAttraction() == null || b.getAttraction() == null) {
             return Double.MAX_VALUE;
         }
@@ -391,7 +872,6 @@ public class RouteRecommendService {
 
     /**
      * 날짜별 최대 권장 노드 수를 계산한다.
-     * 예: 전체 노드 9개, 일정 2일이면 하루 최대 5개.
      */
     private int calculateMaxNodesPerDay(
             int totalNodeCount,
@@ -422,9 +902,6 @@ public class RouteRecommendService {
         return fixedDateByNodeId;
     }
 
-    /**
-     * start/end 조건이 있는 노드를 고정 날짜 Map에 추가한다.
-     */
     private void addFixedDateIfPresent(
             Map<Long, LocalDate> fixedDateByNodeId,
             Long nodeId,
@@ -452,10 +929,6 @@ public class RouteRecommendService {
         if (node == null) {
             throw new BusinessException(ErrorCode.INVALID_ROUTE_RECOMMENDATION_REQUEST);
         }
-
-        int nextVisitOrder = plannedNodesByDate.get(targetDate).size() + 1;
-
-        node.updateVisitInfo(nextVisitOrder, targetDate);
 
         plannedNodesByDate.get(targetDate).add(node);
         arrangedNodes.add(node);
@@ -488,7 +961,7 @@ public class RouteRecommendService {
             Schedule schedule,
             List<Node> nodes,
             List<Edge> edges,
-            Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap
+            Map<LocalDate, DayBoundary> boundaryMap
     ) {
         Map<Integer, String> contentTypeMap = Map.of(
                 12, "관광지",
@@ -512,7 +985,7 @@ public class RouteRecommendService {
                 );
 
         List<RouteRecommendAiRequest.DayRequest> dayRequests =
-                buildDayRequests(schedule, nodes, edges, conditionMap);
+                buildDayRequests(schedule, nodes, edges, boundaryMap);
 
         return new RouteRecommendAiRequest(
                 schedule.getId(),
@@ -525,12 +998,15 @@ public class RouteRecommendService {
 
     /**
      * 날짜별 노드와 Edge 정보를 AI 요청 형식으로 변환한다.
+     *
+     * startNodeId/endNodeId는 fixed boundary가 있으면 fixed 값을 사용하고,
+     * 없으면 서버가 추론한 inferred boundary를 사용한다.
      */
     private List<RouteRecommendAiRequest.DayRequest> buildDayRequests(
             Schedule schedule,
             List<Node> nodes,
             List<Edge> edges,
-            Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap
+            Map<LocalDate, DayBoundary> boundaryMap
     ) {
         Map<LocalDate, List<Node>> nodesByDate = nodes.stream()
                 .filter(node -> node.getVisitDate() != null)
@@ -545,10 +1021,10 @@ public class RouteRecommendService {
         LocalDate current = schedule.getStartDate();
 
         while (!current.isAfter(schedule.getEndDate())) {
-            AutoArrangeRequest.DayCondition condition = conditionMap.get(current);
+            DayBoundary boundary = boundaryMap.get(current);
 
-            Long startNodeId = condition != null ? condition.getStartNodeId() : null;
-            Long endNodeId = condition != null ? condition.getEndNodeId() : null;
+            Long preferredStartNodeId = boundary != null ? boundary.effectiveStartNodeId() : null;
+            Long preferredEndNodeId = boundary != null ? boundary.effectiveEndNodeId() : null;
 
             List<Node> dayNodes = nodesByDate.getOrDefault(current, List.of()).stream()
                     .sorted(Comparator
@@ -586,10 +1062,15 @@ public class RouteRecommendService {
                     ))
                     .toList();
 
+            boolean startFixed = boundary != null && boundary.fixedStartNodeId() != null;
+            boolean endFixed = boundary != null && boundary.fixedEndNodeId() != null;
+
             dayRequests.add(new RouteRecommendAiRequest.DayRequest(
                     current,
-                    startNodeId,
-                    endNodeId,
+                    preferredStartNodeId,
+                    preferredEndNodeId,
+                    startFixed,
+                    endFixed,
                     nodeRequests,
                     edgeRequests
             ));
@@ -626,7 +1107,6 @@ public class RouteRecommendService {
                 .map(RouteRecommendAiResponse.NodeResponse::getNodeId)
                 .collect(Collectors.toSet());
 
-        // AI가 노드를 누락하거나 없는 노드를 추가하면 안 된다.
         if (!inputNodeIds.equals(outputNodeIds)) {
             throw new BusinessException(ErrorCode.INVALID_AI_RECOMMENDATION);
         }
@@ -656,71 +1136,7 @@ public class RouteRecommendService {
     }
 
     /**
-     * 날짜별 visitOrder가 1부터 연속인지 확인한다.
-     */
-    private void validateVisitOrders(RouteRecommendAiResponse response) {
-        for (RouteRecommendAiResponse.DayResponse day : response.getDays()) {
-            List<RouteRecommendAiResponse.NodeResponse> nodes =
-                    day.getNodes() != null ? day.getNodes() : List.of();
-
-            List<Integer> orders = nodes.stream()
-                    .map(RouteRecommendAiResponse.NodeResponse::getVisitOrder)
-                    .sorted()
-                    .toList();
-
-            for (int i = 0; i < orders.size(); i++) {
-                if (!Objects.equals(orders.get(i), i + 1)) {
-                    throw new BusinessException(ErrorCode.INVALID_AI_RECOMMENDATION);
-                }
-            }
-        }
-    }
-
-    /**
-     * startNodeId/endNodeId 조건을 AI가 지켰는지 확인한다.
-     */
-    private void validateDayConditions(
-            RouteRecommendAiResponse response,
-            Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap
-    ) {
-        Map<LocalDate, List<RouteRecommendAiResponse.NodeResponse>> nodesByDate =
-                response.getDays().stream()
-                        .collect(Collectors.toMap(
-                                RouteRecommendAiResponse.DayResponse::getDate,
-                                day -> day.getNodes() != null
-                                        ? day.getNodes().stream()
-                                        .sorted(Comparator.comparing(RouteRecommendAiResponse.NodeResponse::getVisitOrder))
-                                        .toList()
-                                        : List.of(),
-                                (existing, replacement) -> replacement
-                        ));
-
-        for (AutoArrangeRequest.DayCondition condition : conditionMap.values()) {
-            LocalDate date = condition.getDate();
-
-            List<RouteRecommendAiResponse.NodeResponse> dayNodes =
-                    nodesByDate.getOrDefault(date, List.of());
-
-            if (condition.getStartNodeId() != null) {
-                if (dayNodes.isEmpty()
-                        || !condition.getStartNodeId().equals(dayNodes.get(0).getNodeId())) {
-                    throw new BusinessException(ErrorCode.INVALID_AI_RECOMMENDATION);
-                }
-            }
-
-            if (condition.getEndNodeId() != null) {
-                if (dayNodes.isEmpty()
-                        || !condition.getEndNodeId().equals(dayNodes.get(dayNodes.size() - 1).getNodeId())) {
-                    throw new BusinessException(ErrorCode.INVALID_AI_RECOMMENDATION);
-                }
-            }
-        }
-    }
-    /**
      * AI는 서버가 확정한 node별 visitDate를 변경하면 안 된다.
-     *
-     * 서버가 날짜 배치를 담당하고,
-     * AI는 같은 날짜 안에서 visitOrder만 추천한다.
      */
     private void validateNodeDateNotChanged(
             RouteRecommendAiRequest request,
@@ -749,6 +1165,69 @@ public class RouteRecommendService {
     }
 
     /**
+     * 날짜별 visitOrder가 1부터 연속인지 확인한다.
+     */
+    private void validateVisitOrders(RouteRecommendAiResponse response) {
+        for (RouteRecommendAiResponse.DayResponse day : response.getDays()) {
+            List<RouteRecommendAiResponse.NodeResponse> nodes =
+                    day.getNodes() != null ? day.getNodes() : List.of();
+
+            List<Integer> orders = nodes.stream()
+                    .map(RouteRecommendAiResponse.NodeResponse::getVisitOrder)
+                    .sorted()
+                    .toList();
+
+            for (int i = 0; i < orders.size(); i++) {
+                if (!Objects.equals(orders.get(i), i + 1)) {
+                    throw new BusinessException(ErrorCode.INVALID_AI_RECOMMENDATION);
+                }
+            }
+        }
+    }
+
+    /**
+     * 사용자가 명시한 fixed start/end 조건만 검증한다.
+     * 서버가 추론한 inferred start/end는 강제 검증하지 않는다.
+     */
+    private void validateDayConditions(
+            RouteRecommendAiResponse response,
+            Map<LocalDate, AutoArrangeRequest.DayCondition> conditionMap
+    ) {
+        Map<LocalDate, List<RouteRecommendAiResponse.NodeResponse>> nodesByDate =
+                response.getDays().stream()
+                        .collect(Collectors.toMap(
+                                RouteRecommendAiResponse.DayResponse::getDate,
+                                day -> day.getNodes() != null
+                                        ? day.getNodes().stream()
+                                          .sorted(Comparator.comparing(RouteRecommendAiResponse.NodeResponse::getVisitOrder))
+                                          .toList()
+                                        : List.of(),
+                                (existing, replacement) -> replacement
+                        ));
+
+        for (AutoArrangeRequest.DayCondition condition : conditionMap.values()) {
+            LocalDate date = condition.getDate();
+
+            List<RouteRecommendAiResponse.NodeResponse> dayNodes =
+                    nodesByDate.getOrDefault(date, List.of());
+
+            if (condition.getStartNodeId() != null) {
+                if (dayNodes.isEmpty()
+                        || !condition.getStartNodeId().equals(dayNodes.get(0).getNodeId())) {
+                    throw new BusinessException(ErrorCode.INVALID_AI_RECOMMENDATION);
+                }
+            }
+
+            if (condition.getEndNodeId() != null) {
+                if (dayNodes.isEmpty()
+                        || !condition.getEndNodeId().equals(dayNodes.get(dayNodes.size() - 1).getNodeId())) {
+                    throw new BusinessException(ErrorCode.INVALID_AI_RECOMMENDATION);
+                }
+            }
+        }
+    }
+
+    /**
      * AI 응답에 들어온 Edge를 그대로 믿지 않고,
      * 서버가 가진 Edge 정보로 다시 구성한다.
      */
@@ -768,8 +1247,8 @@ public class RouteRecommendService {
             List<RouteRecommendAiResponse.NodeResponse> sortedNodes =
                     day.getNodes() != null
                             ? day.getNodes().stream()
-                            .sorted(Comparator.comparing(RouteRecommendAiResponse.NodeResponse::getVisitOrder))
-                            .toList()
+                              .sorted(Comparator.comparing(RouteRecommendAiResponse.NodeResponse::getVisitOrder))
+                              .toList()
                             : List.of();
 
             List<RouteRecommendAiResponse.EdgeResponse> rebuiltEdges = new ArrayList<>();
@@ -858,33 +1337,6 @@ public class RouteRecommendService {
     }
 
     /**
-     * start/end 고정 조건이 하나도 없을 때,
-     * 각 날짜의 위치 기준점이 될 seed 노드를 먼저 배치한다.
-     *
-     * seed는 서로 최대한 떨어진 노드들로 선택한다.
-     * 이렇게 하면 start/end가 없어도 날짜별로 지역 그룹이 나뉘는 효과를 얻을 수 있다.
-     */
-    private void placeSeedNodes(
-            List<LocalDate> scheduleDates,
-            Map<LocalDate, List<Node>> plannedNodesByDate,
-            List<Node> arrangedNodes,
-            List<Node> nodes
-    ) {
-        int seedCount = Math.min(scheduleDates.size(), nodes.size());
-
-        List<Node> seedNodes = selectSeedNodes(nodes, seedCount);
-
-        for (int i = 0; i < seedNodes.size(); i++) {
-            Node seedNode = seedNodes.get(i);
-            LocalDate targetDate = scheduleDates.get(i);
-
-            seedNode.updateVisitInfo(1, targetDate);
-
-            plannedNodesByDate.get(targetDate).add(seedNode);
-            arrangedNodes.add(seedNode);
-        }
-    }
-    /**
      * 날짜별 seed 노드를 선택한다.
      *
      * 선택 기준:
@@ -939,18 +1391,13 @@ public class RouteRecommendService {
 
         return seeds;
     }
-    /**
-     * 노드가 위도/경도 좌표를 가지고 있는지 확인한다.
-     */
+
     private boolean hasCoordinate(Node node) {
         return node.getAttraction() != null
                 && node.getAttraction().getLatitude() != null
                 && node.getAttraction().getLongitude() != null;
     }
 
-    /**
-     * node가 현재 seed 목록 중 가장 가까운 seed와 얼마나 떨어져 있는지 계산한다.
-     */
     private double distanceToNearestSeed(
             Node node,
             List<Node> seeds
