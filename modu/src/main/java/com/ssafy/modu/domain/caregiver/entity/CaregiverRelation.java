@@ -42,27 +42,32 @@ public class CaregiverRelation {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "accepted_at", nullable = false)
+    @Column(name = "accepted_at")
     private LocalDateTime acceptedAt;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public static CaregiverRelation create(Long travelerId, Long caregiverId) {
+    public static CaregiverRelation createPending(Long travelerId, Long caregiverId) {
         CaregiverRelation relation = new CaregiverRelation();
         relation.travelerId = travelerId;
         relation.caregiverId = caregiverId;
-        relation.active = true;
+        relation.active = false;
 
         LocalDateTime now = LocalDateTime.now();
         relation.createdAt = now;
-        relation.acceptedAt = now;
         relation.updatedAt = now;
 
         return relation;
     }
 
-    public void activate() {
+    public void requestAgain() {
+        this.active = false;
+        this.acceptedAt = null;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void accept() {
         this.active = true;
         this.acceptedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();

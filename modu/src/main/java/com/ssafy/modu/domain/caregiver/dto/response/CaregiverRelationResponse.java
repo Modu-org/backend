@@ -11,21 +11,31 @@ import java.time.LocalDateTime;
 public class CaregiverRelationResponse {
 
     private Long relationId;
+
     private Long travelerId;
+    private String travelerName;
+
     private Long caregiverId;
+    private String caregiverName;
+
     private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime acceptedAt;
 
-    public static CaregiverRelationResponse from(CaregiverRelation relation) {
+    public static CaregiverRelationResponse from(
+            CaregiverRelation relation,
+            String travelerName,
+            String caregiverName
+    ) {
         return CaregiverRelationResponse.builder()
                 .relationId(relation.getId())
                 .travelerId(relation.getTravelerId())
+                .travelerName(travelerName)
                 .caregiverId(relation.getCaregiverId())
+                .caregiverName(caregiverName)
                 .active(relation.isActive())
                 .createdAt(relation.getCreatedAt())
                 .acceptedAt(relation.getAcceptedAt())
                 .build();
     }
-
 }
