@@ -57,4 +57,14 @@ public class NotificationService {
 
         notification.markAsRead();
     }
+
+    @Transactional
+
+    public void deleteNotification(Long userId, Long notificationId) {
+        Notification notification = notificationRepository
+                .findByIdAndReceiverId(notificationId, userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND));
+
+        notificationRepository.delete(notification);
+    }
 }
