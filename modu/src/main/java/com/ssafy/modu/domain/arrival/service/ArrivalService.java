@@ -1,12 +1,14 @@
 package com.ssafy.modu.domain.arrival.service;
 
 import com.ssafy.modu.domain.arrival.dto.request.ArrivalRequest;
+import com.ssafy.modu.domain.arrival.dto.response.ArrivalLogDetailResponse;
 import com.ssafy.modu.domain.arrival.dto.response.ArrivalResponse;
 import com.ssafy.modu.domain.arrival.dto.response.NextDestinationResponse;
 import com.ssafy.modu.domain.arrival.entity.ArrivalLog;
 import com.ssafy.modu.domain.arrival.repository.ArrivalLogRepository;
 import com.ssafy.modu.domain.arrival.util.DistanceCalculator;
 import com.ssafy.modu.domain.attraction.entity.Attraction;
+import com.ssafy.modu.domain.caregiver.repository.CaregiverRelationRepository;
 import com.ssafy.modu.domain.edge.entity.Edge;
 import com.ssafy.modu.domain.edge.repository.EdgeRepository;
 import com.ssafy.modu.domain.node.entity.Node;
@@ -36,6 +38,7 @@ public class ArrivalService {
     private final ArrivalLogRepository arrivalLogRepository;
     private final DistanceCalculator distanceCalculator;
     private final ArrivalNotificationService arrivalNotificationService;
+    private final CaregiverRelationRepository caregiverRelationRepository;
 
     // 도착 처리 로직
     public ArrivalResponse confirmArrival(
@@ -134,6 +137,52 @@ public class ArrivalService {
                 distanceMeters,
                 nextDestination
         );
+    }
+    @Transactional(readOnly = true)
+    public ArrivalLogDetailResponse getArrivalLogDetail(
+            Long userId,
+            Long arrivalLogId
+    ) {
+        ArrivalLog arrivalLog = arrivalLogRepository.findById(arrivalLogId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ARRIVAL_LOG_NOT_FOUND));
+
+        Schedule schedule = scheduleRepository.findById(arrivalLog.getScheduleId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        validateArrivalLogAccess(userId, arrivalLog, schedule);
+
+        Node node = nodeRepository.findByIdAndSchedule_Id(
+                        arrivalLog.getNodeId(),
+                        arrivalLog.getScheduleId()
+                )
+                .orElseThrow(() -> new BusinessException(ErrorCode.NODE_NOT_FOUND));
+
+        Attraction attraction = node.getAttraction();
+
+        return ArrivalLogDetailResponse.of(arrivalLog, node, attraction);
+    }
+    private void validateArrivalLogAccess(
+            Long userId,
+            ArrivalLog arrivalLog,
+            Schedule schedule
+    ) {
+        Long travelerId = arrivalLog.getTravelerId();
+
+        if (travelerId.equals(userId)) {
+            return;
+        }
+
+        boolean isAcceptedCaregiver = caregiverRelationRepository
+                .existsByTravelerIdAndCaregiverIdAndActiveTrue(
+                        travelerId,
+                        userId
+                );
+
+        if (schedule.isArrivalShared() && isAcceptedCaregiver) {
+            return;
+        }
+
+        throw new BusinessException(ErrorCode.ARRIVAL_LOG_NOT_FOUND);
     }
     // 도착 버튼을 누른 노드가 정상 노드인지 확인
     private void validateArrivableNode(Node node) {
