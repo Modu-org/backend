@@ -82,8 +82,8 @@ public class ArrivalService {
             );
         }
 
-        double attractionLatitude = toDouble(currentAttraction.getLatitude());
-        double attractionLongitude = toDouble(currentAttraction.getLongitude());
+        double attractionLatitude = toNullableDouble(currentAttraction.getLatitude());
+        double attractionLongitude = toNullableDouble(currentAttraction.getLongitude());
 
         // 도착 버튼을 누른 시점의 위치정보를 이용해서, 관광지와의 거리 계산
         double distanceMeters = distanceCalculator.calculateMeters(
@@ -159,7 +159,23 @@ public class ArrivalService {
 
         Attraction attraction = node.getAttraction();
 
-        return ArrivalLogDetailResponse.of(arrivalLog, node, attraction);
+        Node nextNode = findNextNode(node);
+
+        NextDestinationResponse nextDestination = null;
+        if (nextNode != null && nextNode.getAttraction() != null) {
+            nextDestination = createNextDestination(
+                    arrivalLog.getScheduleId(),
+                    node,
+                    nextNode
+            );
+        }
+
+        return ArrivalLogDetailResponse.of(
+                arrivalLog,
+                node,
+                attraction,
+                nextDestination
+        );
     }
     private void validateArrivalLogAccess(
             Long userId,
@@ -236,18 +252,17 @@ public class ArrivalService {
 
         return NextDestinationResponse.of(
                 nextNode.getId(),
+                nextAttraction.getId(),
                 nextAttraction.getName(),
                 nextAttraction.getAddress(),
+                toNullableDouble(nextAttraction.getLatitude()),
+                toNullableDouble(nextAttraction.getLongitude()),
                 distanceMeters,
                 estimatedTimeMinutes
         );
     }
 
-    private double toDouble(BigDecimal value) {
-        if (value == null) {
-            throw new BusinessException(ErrorCode.INVALID_ATTRACTION_LOCATION);
-        }
-
-        return value.doubleValue();
+    private Double toNullableDouble(BigDecimal value) {
+        return value == null ? null : value.doubleValue();
     }
 }

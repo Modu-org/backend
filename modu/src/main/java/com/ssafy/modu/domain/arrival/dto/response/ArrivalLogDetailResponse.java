@@ -32,10 +32,13 @@ public class ArrivalLogDetailResponse {
 
     private LocalDateTime requestedAt;
 
+    private NextDestinationResponse nextDestination;
+
     public static ArrivalLogDetailResponse of(
             ArrivalLog arrivalLog,
             Node node,
-            Attraction attraction
+            Attraction attraction,
+            NextDestinationResponse nextDestination
     ) {
         return ArrivalLogDetailResponse.builder()
                 .arrivalLogId(arrivalLog.getId())
@@ -51,6 +54,7 @@ public class ArrivalLogDetailResponse {
                 .attractionLatitude(arrivalLog.getAttractionLatitude())
                 .attractionLongitude(arrivalLog.getAttractionLongitude())
                 .requestedAt(arrivalLog.getRequestedAt())
+                .nextDestination(nextDestination)
                 .build();
     }
 }
