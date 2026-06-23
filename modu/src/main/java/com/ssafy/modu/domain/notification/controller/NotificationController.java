@@ -67,4 +67,22 @@ public class NotificationController {
                 )
         );
     }
+
+    @DeleteMapping("/{notificationId}")
+    public ResponseEntity<ApiResponse<Void>> deleteNotification(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long notificationId
+    ) {
+        notificationService.deleteNotification(
+                userDetails.getUserId(),
+                notificationId
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        SuccessCode.OK,
+                        "알림이 삭제되었습니다."
+                )
+        );
+    }
 }
