@@ -34,9 +34,19 @@ public class ArrivalController {
                 request
         );
 
+        if (response.isArrived()) {
+            return ResponseEntity.ok(
+                    ApiResponse.success(
+                            SuccessCode.OK,
+                            response.getMessage(),
+                            response
+                    )
+            );
+        }
+
         return ResponseEntity.ok(
                 ApiResponse.success(
-                        SuccessCode.OK,
+                        SuccessCode.NO_CONTENT_DATA,
                         response.getMessage(),
                         response
                 )
