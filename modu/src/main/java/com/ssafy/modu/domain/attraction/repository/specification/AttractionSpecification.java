@@ -176,6 +176,27 @@ public class AttractionSpecification {
             CriteriaBuilder cb,
             AttractionSearchCondition condition
     ) {
+        if (condition.getKeywordTokens() != null && !condition.getKeywordTokens().isEmpty()) {
+            for (String token : condition.getKeywordTokens()) {
+                if (!hasText(token)) {
+                    continue;
+                }
+
+                String keyword = "%" + token.trim() + "%";
+
+                predicates.add(cb.or(
+                        cb.like(root.get("name"), keyword),
+                        cb.like(root.get("address"), keyword),
+                        cb.like(root.get("addressDetail"), keyword),
+                        cb.like(root.get("lclsSystm1"), keyword),
+                        cb.like(root.get("lclsSystm2"), keyword),
+                        cb.like(root.get("lclsSystm3"), keyword)
+                ));
+            }
+
+            return;
+        }
+
         if (!hasText(condition.getKeyword())) {
             return;
         }
@@ -184,7 +205,11 @@ public class AttractionSpecification {
 
         predicates.add(cb.or(
                 cb.like(root.get("name"), keyword),
-                cb.like(root.get("address"), keyword)
+                cb.like(root.get("address"), keyword),
+                cb.like(root.get("addressDetail"), keyword),
+                cb.like(root.get("lclsSystm1"), keyword),
+                cb.like(root.get("lclsSystm2"), keyword),
+                cb.like(root.get("lclsSystm3"), keyword)
         ));
     }
 

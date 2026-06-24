@@ -22,10 +22,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,6 +33,21 @@ public class AttractionService {
     private static final int DEFAULT_PAGE = 0;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 50;
+
+    private static final String CONTENT_TYPE_ACCOMMODATION = "32";
+    private static final String CONTENT_TYPE_RESTAURANT = "39";
+
+    private static final Set<String> ACCOMMODATION_KEYWORDS = Set.of(
+            "숙박", "숙소", "호텔", "모텔", "펜션", "리조트", "게스트하우스", "민박"
+    );
+
+    private static final Set<String> RESTAURANT_KEYWORDS = Set.of(
+            "맛집", "식당", "음식점", "밥집", "음식", "한식", "중식", "일식", "양식", "분식", "레스토랑"
+    );
+
+    private static final Set<String> CAFE_KEYWORDS = Set.of(
+            "카페", "커피", "디저트", "베이커리", "빵집"
+    );
 
     private final AttractionRepository attractionRepository;
     private final AccessibilityInfoRepository accessibilityInfoRepository;
@@ -75,12 +87,20 @@ public class AttractionService {
                 request.getSigunguCode()
         );
 
+        ParsedSearchKeyword parsedKeyword = parseKeyword(request.getKeyword());
+
+        List<String> contentTypeIds = resolveContentTypeIds(
+                request.getContentTypeIds(),
+                parsedKeyword.contentTypeIds()
+        );
+
         AttractionSearchCondition condition = AttractionSearchCondition.builder()
                 .regionCode(request.getRegionCode())
                 .sigunguCode(request.getSigunguCode())
                 .keyword(request.getKeyword())
+                .keywordTokens(parsedKeyword.keywordTokens())
                 .sigunguCodes(sigunguCodes)
-                .contentTypeIds(request.getContentTypeIds())
+                .contentTypeIds(contentTypeIds)
                 .categories(categories)
                 .build();
 
@@ -207,5 +227,81 @@ public class AttractionService {
         }
 
         return List.of(sigunguCode);
+    }
+
+    private ParsedSearchKeyword parseKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return new ParsedSearchKeyword(List.of(), List.of());
+        }
+
+        List<String> tokens = Arrays.stream(keyword.trim().split("\\s+"))
+                .filter(token -> !token.isBlank())
+                .toList();
+
+        List<String> keywordTokens = new ArrayList<>();
+        Set<String> contentTypeIds = new LinkedHashSet<>();
+
+        for (String token : tokens) {
+            String normalizedToken = token.trim();
+
+            if (ACCOMMODATION_KEYWORDS.contains(normalizedToken)) {
+                contentTypeIds.add(CONTENT_TYPE_ACCOMMODATION);
+                continue;
+            }
+
+            if (RESTAURANT_KEYWORDS.contains(normalizedToken)) {
+                contentTypeIds.add(CONTENT_TYPE_RESTAURANT);
+                continue;
+            }
+
+            if (CAFE_KEYWORDS.contains(normalizedToken)) {
+                contentTypeIds.add(CONTENT_TYPE_RESTAURANT);
+
+            /*
+                카페는 음식점 contentType 안에서도 한 번 더 좁혀야 한다.
+                그래서 "부산 카페"에서 카페 토큰은 제거하지 않고 검색어로도 유지한다.
+             */
+                keywordTokens.add(normalizedToken);
+                continue;
+            }
+
+            keywordTokens.add(normalizedToken);
+        }
+
+        return new ParsedSearchKeyword(
+                keywordTokens,
+                new ArrayList<>(contentTypeIds)
+        );
+    }
+
+    private List<String> resolveContentTypeIds(
+            List<String> requestContentTypeIds,
+            List<String> inferredContentTypeIds
+    ) {
+        Set<String> result = new LinkedHashSet<>();
+
+        if (requestContentTypeIds != null) {
+            result.addAll(
+                    requestContentTypeIds.stream()
+                            .filter(this::hasText)
+                            .toList()
+            );
+        }
+
+        if (inferredContentTypeIds != null) {
+            result.addAll(inferredContentTypeIds);
+        }
+
+        return new ArrayList<>(result);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private record ParsedSearchKeyword(
+            List<String> keywordTokens,
+            List<String> contentTypeIds
+    ) {
     }
 }
